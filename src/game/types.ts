@@ -41,4 +41,4 @@ export interface Star {
   z: number;
 }
 
-export type GameState = "ready" | "playing" | "over";
+export type GameState = "ready" | "playing" | "paused" | "over";

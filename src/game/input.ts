@@ -12,6 +12,7 @@ export class Input {
   constructor(private readonly canvas: HTMLCanvasElement) {
     canvas.addEventListener("pointermove", this.onMove, { passive: true });
     canvas.addEventListener("pointerdown", this.onDown);
+    canvas.addEventListener("contextmenu", (e) => e.preventDefault());
     window.addEventListener("keydown", this.onKey);
   }
 
@@ -41,6 +42,7 @@ export class Input {
   };
 
   private onKey = (e: KeyboardEvent): void => {
+    if (e.target instanceof HTMLInputElement) return;
     if (e.code === "Space" || e.code === "Enter") {
       e.preventDefault();
       this.pressed = true;
