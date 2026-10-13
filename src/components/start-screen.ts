@@ -1,6 +1,6 @@
 import type { Game } from "@/game/game";
 import { loadTag, saveTag } from "@/services/storage";
-import { cleanTag, isValidTag, randomTag } from "@/services/tag";
+import { cleanTag, isValidTag, randomTag, TAG_MAX, TAG_MIN } from "@/services/tag";
 import { find, html, pad, showPanel, type Panel } from "./dom";
 
 export interface StartScreen extends Panel {
@@ -14,11 +14,13 @@ export function createStartScreen(game: Game): StartScreen {
       <div class="card glass glass-strong">
         <p class="item eyebrow">Neon Gravity</p>
         <h1 class="item title">Cosmic Dodger</h1>
-        <p class="item blurb">Drag to fly. Dodge the pink rocks and stay out of the violet pull.</p>
+        <p class="item blurb">Drag, move your mouse or use the arrow keys. Dodge the pink rocks and stay out of the violet pull.</p>
         <label class="item tag-field">
           <span class="field-label">Your tag</span>
-          <input class="tag-input numeric" type="text" maxlength="3" autocomplete="off"
-            autocapitalize="characters" spellcheck="false" aria-label="Your 3 letter arcade tag" />
+          <input class="tag-input numeric" type="text" maxlength="${TAG_MAX}" autocomplete="off"
+            autocapitalize="characters" spellcheck="false"
+            aria-label="Your arcade tag, ${TAG_MIN} to ${TAG_MAX} characters" />
+          <span class="field-hint">${TAG_MIN} to ${TAG_MAX} letters, numbers, _ or -</span>
         </label>
         <button class="item btn btn-primary" type="button">Play</button>
         <p class="item hint">Best <span class="numeric best-value">000000</span></p>

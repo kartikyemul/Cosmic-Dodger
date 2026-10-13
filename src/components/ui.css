@@ -125,6 +125,7 @@
   display: grid;
   justify-items: center;
   gap: 0.4rem;
+  width: 100%;
 }
 .field-label {
   font-size: 0.72rem;
@@ -133,12 +134,12 @@
   color: var(--color-text-tertiary);
 }
 .tag-input {
-  width: 8rem;
-  padding: 0.55rem 0.5rem;
-  font-size: 2rem;
+  width: min(100%, 17rem);
+  padding: 0.6rem 0.75rem;
+  font-size: 1.35rem;
   font-weight: 600;
-  letter-spacing: 0.3em;
-  text-indent: 0.3em;
+  letter-spacing: 0.12em;
+  text-indent: 0.12em;
   text-align: center;
   color: var(--color-text-primary);
   background: rgb(255 255 255 / 0.05);
@@ -147,6 +148,14 @@
   outline: none;
   user-select: text;
   transition: border-color 200ms, box-shadow 300ms var(--ease-calm);
+}
+.field-hint {
+  font-size: 0.72rem;
+  color: var(--color-text-tertiary);
+  transition: color 200ms;
+}
+.tag-input[aria-invalid="true"] ~ .field-hint {
+  color: var(--color-neon-magenta);
 }
 .tag-input:focus {
   border-color: var(--color-neon-cyan);
