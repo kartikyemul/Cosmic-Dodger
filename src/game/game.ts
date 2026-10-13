@@ -8,6 +8,7 @@ import type { Body, GameState, Hazard, Particle, Star, Well } from "./types";
 
 export const RESTART_DELAY_MS = 700;
 const RESUME_GRACE = 0.8;
+const KEYBOARD_SPEED = 850;
 
 const makeBody = (x: number, y: number, r: number): Body => ({
   x, y, px: x, py: y, vx: 0, vy: 0, r,
@@ -50,6 +51,8 @@ export class Game {
   private spawnTimer = 0.6;
   private wellTimer: number = CONFIG.wellFirstAt;
   private trailTimer = 0;
+  private keyX = 0;
+  private keyY = 0;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -173,6 +176,7 @@ export class Game {
   // player
 
   private target(): { x: number; y: number } {
+    if (this.input.usingKeyboard) return { x: this.keyX, y: this.keyY };
     if (!this.input.hasPointer) return { x: this.w / 2, y: this.h * 0.78 };
     const lift = this.input.pointerType === "touch" ? CONFIG.touchLift * this.scale : 0;
     const m = this.player.r * 1.5;
@@ -182,8 +186,26 @@ export class Game {
     };
   }
 
+  // with the keyboard, the arrow keys move the target point and the ship follows it
+  private moveKeyboardTarget(dt: number): void {
+    const p = this.player;
+    if (!this.input.usingKeyboard) {
+      this.keyX = p.x;
+      this.keyY = p.y;
+      return;
+    }
+    const dx = this.input.moveX;
+    const dy = this.input.moveY;
+    const len = Math.hypot(dx, dy) || 1;
+    const step = KEYBOARD_SPEED * this.scale * dt;
+    const m = p.r * 1.5;
+    this.keyX = clamp(this.keyX + (dx / len) * step, m, this.w - m);
+    this.keyY = clamp(this.keyY + (dy / len) * step, m, this.h - m);
+  }
+
   private movePlayer(dt: number): void {
     const p = this.player;
+    this.moveKeyboardTarget(dt);
     const t = this.target();
     const k = CONFIG.followStiffness;
     const c = 2 * Math.sqrt(k) * CONFIG.followDamping;
@@ -294,6 +316,8 @@ export class Game {
     this.grace = 0;
     this.spawnTimer = 0.6;
     this.wellTimer = CONFIG.wellFirstAt;
+    this.keyX = this.w / 2;
+    this.keyY = this.h * 0.78;
     this.placePlayer();
     this.state = "playing";
     this.canvas.style.cursor = "none";
