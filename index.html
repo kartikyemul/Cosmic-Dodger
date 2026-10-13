@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en" class="bg-void">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
+    />
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="description" content="Cosmic Dodger: Neon Gravity, a one-thumb arcade game." />
+    <title>Cosmic Dodger: Neon Gravity</title>
+  </head>
+  <body class="m-0 overflow-hidden bg-void text-text-primary antialiased">
+    <!-- Game world -->
+    <canvas id="stage" class="fixed inset-0 h-full w-full touch-none select-none"></canvas>
+    <!-- Glass UI layer: all HUD and overlays mount here -->
+    <div id="ui" class="pointer-events-none fixed inset-0 safe-pad"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
