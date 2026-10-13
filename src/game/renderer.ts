@@ -34,7 +34,6 @@ export class Renderer {
     this.drawParticles(g);
     ctx.restore();
 
-    this.drawHud(g, now);
   }
 
   private drawBackdrop(g: Game): void {
@@ -134,6 +133,7 @@ export class Renderer {
   }
 
   private drawPlayer(g: Game, alpha: number, now: number): void {
+    if (g.grace > 0 && Math.floor(now / 90) % 2 === 0) return;
     const { ctx, c } = this;
     const p = g.player;
     const x = lerp(p.px, p.x, alpha);
@@ -185,46 +185,6 @@ export class Renderer {
       ctx.globalAlpha = clamp(q.life / q.maxLife, 0, 1);
       ctx.fillStyle = c[q.tint];
       ctx.fillRect(q.x - q.size / 2, q.y - q.size / 2, q.size, q.size);
-    }
-    ctx.restore();
-  }
-
-  /** Temporary text, so you can play before the real glass UI exists. Step 3 replaces all of it. */
-  private drawHud(g: Game, now: number): void {
-    const { ctx, c } = this;
-    const sans = "system-ui, -apple-system, 'Segoe UI', sans-serif";
-    const mono = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-    const pad = (n: number): string => String(n).padStart(6, "0");
-
-    ctx.save();
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = c.text;
-    const cx = g.w / 2;
-    const cy = g.h * 0.38;
-
-    if (g.state === "playing") {
-      ctx.font = `600 28px ${mono}`;
-      ctx.globalAlpha = 0.9;
-      ctx.fillText(pad(g.score), cx, 56);
-    } else if (g.state === "ready") {
-      ctx.font = `700 34px ${sans}`;
-      ctx.fillText("Cosmic Dodger", cx, cy);
-      ctx.font = `500 16px ${sans}`;
-      ctx.globalAlpha = 0.55 + 0.25 * Math.sin(now / 600);
-      ctx.fillText("Tap, click or press Space to start", cx, cy + 44);
-    } else {
-      ctx.font = `700 34px ${sans}`;
-      ctx.fillText("Game over", cx, cy);
-      ctx.font = `600 28px ${mono}`;
-      ctx.fillText(pad(g.score), cx, cy + 48);
-      ctx.font = `500 16px ${sans}`;
-      ctx.globalAlpha = 0.6;
-      ctx.fillText(`Best ${pad(g.best)}`, cx, cy + 84);
-      if (now >= g.lockedUntil) {
-        ctx.globalAlpha = 0.55 + 0.25 * Math.sin(now / 600);
-        ctx.fillText("Tap, click or press Space to play again", cx, cy + 124);
-      }
     }
     ctx.restore();
   }

@@ -6,23 +6,19 @@ import { Renderer } from "./renderer";
 import { difficulty, hazardInterval, spawnHazard, spawnWell } from "./spawner";
 import type { Body, GameState, Hazard, Particle, Star, Well } from "./types";
 
-export interface GameEvents {
-  /** Fires when a run starts ("playing") and when it ends ("over"). Step 3's UI hooks in here. */
-  onStateChange?: (state: GameState, score: number) => void;
-}
+export const RESTART_DELAY_MS = 700;
+const RESUME_GRACE = 0.8;
 
 const makeBody = (x: number, y: number, r: number): Body => ({
   x, y, px: x, py: y, vx: 0, vy: 0, r,
 });
 
-/** Remember where a body is, so the renderer can blend between steps. */
 const snap = (b: Body): void => {
   b.px = b.x;
   b.py = b.y;
 };
 
 export class Game {
-  // Read by the renderer (and by the step 3 HUD).
   state: GameState = "ready";
   w = 0;
   h = 0;
@@ -30,7 +26,9 @@ export class Game {
   elapsed = 0;
   score = 0;
   best = 0;
+  newBest = false;
   shake = 0;
+  grace = 0;
   lockedUntil = 0;
   readonly player: Body = makeBody(0, 0, CONFIG.playerRadius);
   hazards: Hazard[] = [];
@@ -38,9 +36,15 @@ export class Game {
   particles: Particle[] = [];
   stars: Star[] = [];
 
+  // the UI plugs into these
+  onStateChange: ((state: GameState) => void) | null = null;
+  onScore: ((score: number) => void) | null = null;
+  canStart: (() => boolean) | null = null;
+
   private readonly ctx: CanvasRenderingContext2D;
   private readonly input: Input;
   private readonly renderer: Renderer;
+  private readonly reduceMotion: boolean;
   private acc = 0;
   private last = 0;
   private spawnTimer = 0.6;
@@ -50,16 +54,17 @@ export class Game {
   constructor(
     private readonly canvas: HTMLCanvasElement,
     palette: Palette,
-    private readonly events: GameEvents = {},
   ) {
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) throw new Error("This browser does not support canvas 2D.");
     this.ctx = ctx;
     this.input = new Input(canvas);
     this.renderer = new Renderer(ctx, palette);
+    this.reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.addEventListener("keydown", this.onKey);
+    document.addEventListener("visibilitychange", this.onVisibility);
   }
 
-  /** Starts the animation loop. Call once. */
   run(): void {
     this.last = performance.now();
     requestAnimationFrame(this.frame);
@@ -75,29 +80,64 @@ export class Game {
     this.scale = clamp(Math.min(w, h) / 720, 0.65, 1.35);
     this.player.r = CONFIG.playerRadius * this.scale;
     this.seedStars();
-    if (this.state === "playing") this.keepPlayerInside();
+    if (this.state === "playing" || this.state === "paused") this.keepPlayerInside();
     else this.placePlayer();
   }
 
-  // ------------------------------------------------------------------
-  // The loop: fixed physics steps, variable rendering
-  // ------------------------------------------------------------------
+  /** Starts a run from the start screen or the game over screen. */
+  start(): void {
+    const canRestart =
+      this.state === "ready" || (this.state === "over" && performance.now() >= this.lockedUntil);
+    if (!canRestart) return;
+    if (this.canStart && !this.canStart()) return;
+    this.startRun();
+  }
+
+  pause(): void {
+    if (this.state !== "playing") return;
+    this.state = "paused";
+    this.canvas.style.cursor = "default";
+    this.onStateChange?.(this.state);
+  }
+
+  resume(): void {
+    if (this.state !== "paused") return;
+    this.state = "playing";
+    this.grace = RESUME_GRACE;
+    this.canvas.style.cursor = "none";
+    this.onStateChange?.(this.state);
+  }
+
+  private onKey = (e: KeyboardEvent): void => {
+    if (e.target instanceof HTMLInputElement) return;
+    if (e.code !== "Escape" && e.code !== "KeyP") return;
+    if (this.state === "playing") this.pause();
+    else if (this.state === "paused") this.resume();
+  };
+
+  private onVisibility = (): void => {
+    if (document.hidden) this.pause();
+  };
+
   private frame = (now: number): void => {
-    const dt = Math.min((now - this.last) / 1000, CONFIG.maxFrameDt);
-    this.last = now;
+    try {
+      const dt = Math.min((now - this.last) / 1000, CONFIG.maxFrameDt);
+      this.last = now;
 
-    if (this.input.consumePress()) this.handlePress(now);
+      if (this.input.consumePress()) this.start();
 
-    // Run physics in tiny fixed slices so the game feels identical on 60Hz and 144Hz screens.
-    this.acc += dt;
-    while (this.acc >= CONFIG.fixedDt) {
-      this.step(CONFIG.fixedDt);
-      this.acc -= CONFIG.fixedDt;
+      this.acc += dt;
+      while (this.acc >= CONFIG.fixedDt) {
+        this.step(CONFIG.fixedDt);
+        this.acc -= CONFIG.fixedDt;
+      }
+
+      this.driftStars(dt);
+      this.renderer.draw(this, this.acc / CONFIG.fixedDt, now);
+    } catch (err) {
+      // one bad frame should never kill the whole loop
+      console.error("frame failed", err);
     }
-
-    this.driftStars(dt);
-    // acc/fixedDt is how far we are between two physics steps: used to blend positions.
-    this.renderer.draw(this, this.acc / CONFIG.fixedDt, now);
     requestAnimationFrame(this.frame);
   };
 
@@ -106,6 +146,7 @@ export class Game {
     this.hazards.forEach(snap);
     this.wells.forEach(snap);
 
+    if (this.state === "paused") return;
     if (this.state === "playing") this.stepPlaying(dt);
     else if (this.state === "ready") this.movePlayer(dt);
 
@@ -116,18 +157,21 @@ export class Game {
 
   private stepPlaying(dt: number): void {
     this.elapsed += dt;
-    this.score = Math.floor(this.elapsed * CONFIG.scorePerSecond);
-    const d = difficulty(this.elapsed);
+    const s = Math.floor(this.elapsed * CONFIG.scorePerSecond);
+    if (s !== this.score) {
+      this.score = s;
+      this.onScore?.(s);
+    }
+    if (this.grace > 0) this.grace -= dt;
 
-    this.spawnThings(dt, d);
+    this.spawnThings(dt, difficulty(this.elapsed));
     this.movePlayer(dt);
     this.moveWorld(dt);
-    this.checkCollisions();
+    if (this.grace <= 0) this.checkCollisions();
   }
 
-  // ------------------------------------------------------------------
-  // Player
-  // ------------------------------------------------------------------
+  // player
+
   private target(): { x: number; y: number } {
     if (!this.input.hasPointer) return { x: this.w / 2, y: this.h * 0.78 };
     const lift = this.input.pointerType === "touch" ? CONFIG.touchLift * this.scale : 0;
@@ -138,7 +182,6 @@ export class Game {
     };
   }
 
-  /** The ship is attached to the pointer by an invisible spring. That's the whole "feel". */
   private movePlayer(dt: number): void {
     const p = this.player;
     const t = this.target();
@@ -148,7 +191,6 @@ export class Game {
     p.vx += ((t.x - p.x) * k - p.vx * c) * dt;
     p.vy += ((t.y - p.y) * k - p.vy * c) * dt;
 
-    // Gravity wells bend the ship's path. Closer = stronger.
     for (const well of this.wells) {
       const dx = well.x - p.x;
       const dy = well.y - p.y;
@@ -188,9 +230,8 @@ export class Game {
     p.vy = 0;
   }
 
-  // ------------------------------------------------------------------
-  // World
-  // ------------------------------------------------------------------
+  // world
+
   private spawnThings(dt: number, d: number): void {
     this.spawnTimer -= dt;
     while (this.spawnTimer <= 0) {
@@ -240,13 +281,7 @@ export class Game {
     }
   }
 
-  // ------------------------------------------------------------------
-  // State changes
-  // ------------------------------------------------------------------
-  private handlePress(now: number): void {
-    if (this.state === "ready") this.startRun();
-    else if (this.state === "over" && now >= this.lockedUntil) this.startRun();
-  }
+  // state changes
 
   private startRun(): void {
     this.hazards = [];
@@ -254,22 +289,25 @@ export class Game {
     this.particles = [];
     this.elapsed = 0;
     this.score = 0;
+    this.newBest = false;
     this.shake = 0;
+    this.grace = 0;
     this.spawnTimer = 0.6;
     this.wellTimer = CONFIG.wellFirstAt;
     this.placePlayer();
     this.state = "playing";
     this.canvas.style.cursor = "none";
-    this.events.onStateChange?.("playing", 0);
+    this.onScore?.(0);
+    this.onStateChange?.(this.state);
   }
 
   private die(): void {
     const p = this.player;
     this.state = "over";
-    this.best = Math.max(this.best, this.score);
-    // Brief lock so frantic tapping doesn't instantly restart.
-    this.lockedUntil = performance.now() + 700;
-    this.shake = 14 * this.scale;
+    this.newBest = this.score > this.best;
+    if (this.newBest) this.best = this.score;
+    this.lockedUntil = performance.now() + RESTART_DELAY_MS;
+    if (!this.reduceMotion) this.shake = 14 * this.scale;
     this.canvas.style.cursor = "default";
 
     for (let i = 0; i < 48; i++) {
@@ -286,12 +324,11 @@ export class Game {
         tint: i % 3 === 0 ? "text" : i % 3 === 1 ? "cyan" : "violet",
       });
     }
-    this.events.onStateChange?.("over", this.score);
+    this.onStateChange?.(this.state);
   }
 
-  // ------------------------------------------------------------------
-  // Effects
-  // ------------------------------------------------------------------
+  // effects
+
   private addParticle(q: Particle): void {
     if (this.particles.length >= CONFIG.maxParticles) return;
     this.particles.push({ ...q, life: q.life > 0 ? q.life : q.maxLife });
@@ -337,7 +374,6 @@ export class Game {
     }));
   }
 
-  /** Stars are decoration, so they move with real frame time, outside the physics steps. */
   private driftStars(dt: number): void {
     const boost = this.state === "playing" ? 1 + difficulty(this.elapsed) * 1.2 : 1;
     for (const s of this.stars) {
