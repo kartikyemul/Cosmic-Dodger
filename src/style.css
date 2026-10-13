@@ -7,7 +7,7 @@
    (bg-void, text-neon-cyan, rounded-glass, shadow-glow-cyan, ease-spring...)
    and exposes every one as a CSS variable the canvas can read at runtime.
    ------------------------------------------------------------------ */
-@theme {
+@theme static {
   /* Depth: OLED void up through layered ink */
   --color-void: #000000;
   --color-ink-950: #05060b;
