@@ -1,9 +1,15 @@
 import { CONFIG } from "./config";
-import { clamp, rand } from "./math";
+import { clamp, rand, smoothstep } from "./math";
 import type { Hazard, Well } from "./types";
 
-/** 0 at the start of a run, 1 once `rampSeconds` have passed. */
-export const difficulty = (elapsed: number): number => clamp(elapsed / CONFIG.rampSeconds, 0, 1);
+const PEAK = 0.8;
+
+/** progress runs from 0 to 1 along the journey. Gets harder, then eases off near the planet. */
+export function difficulty(progress: number): number {
+  const rise = smoothstep(0, 0.55, progress) * PEAK;
+  const calm = smoothstep(0.8, 1, progress) * 0.4;
+  return clamp(rise - calm, 0, 1);
+}
 
 export const hazardInterval = (d: number): number =>
   CONFIG.hazardIntervalStart + (CONFIG.hazardIntervalEnd - CONFIG.hazardIntervalStart) * d;
