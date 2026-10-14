@@ -232,6 +232,10 @@
 .pill {
   border-radius: 999px;
   pointer-events: none;
+  /* a dark tint keeps the score readable when the sky turns bright */
+  background:
+    radial-gradient(260px circle at var(--light-x, 50%) var(--light-y, 0%), rgb(255 255 255 / 0.12), transparent 62%),
+    rgb(6 10 26 / 0.5);
 }
 .score {
   min-width: 8.5rem;
@@ -240,9 +244,24 @@
   font-weight: 600;
   text-align: center;
 }
+.track {
+  width: 8.5rem;
+  height: 3px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.16);
+  overflow: hidden;
+}
+.track-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-neon-cyan), var(--color-neon-lime));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 120ms linear;
+}
 .best-line {
   font-size: 0.7rem;
-  color: var(--color-text-tertiary);
+  color: var(--color-text-secondary);
+  text-shadow: 0 1px 6px rgb(0 0 0 / 0.5);
 }
 .icon-btn {
   justify-self: end;

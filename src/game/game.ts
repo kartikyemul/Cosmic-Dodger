@@ -9,6 +9,11 @@ import type { Body, GameState, Hazard, Particle, Star, Well } from "./types";
 export const RESTART_DELAY_MS = 700;
 const RESUME_GRACE = 0.8;
 const KEYBOARD_SPEED = 850;
+export const WIN_SCORE = 100000;
+export const WIN_CARD_DELAY_MS = 2600;
+const JOURNEY_SECONDS = 300;
+const HAZARDS_END = 0.93;
+const WELLS_END = 0.88;
 
 const makeBody = (x: number, y: number, r: number): Body => ({
   x, y, px: x, py: y, vx: 0, vy: 0, r,
@@ -31,6 +36,8 @@ export class Game {
   shake = 0;
   grace = 0;
   lockedUntil = 0;
+  journeySeconds = JOURNEY_SECONDS;
+  godMode = false;
   readonly player: Body = makeBody(0, 0, CONFIG.playerRadius);
   hazards: Hazard[] = [];
   wells: Well[] = [];
@@ -53,6 +60,7 @@ export class Game {
   private trailTimer = 0;
   private keyX = 0;
   private keyY = 0;
+  private scoreTimer = 0;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -64,8 +72,20 @@ export class Game {
     this.input = new Input(canvas);
     this.renderer = new Renderer(ctx, palette);
     this.reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (import.meta.env.DEV) {
+      // testing shortcuts, only in `npm run dev`: ?journey=40&god
+      const params = new URLSearchParams(window.location.search);
+      const seconds = Number(params.get("journey"));
+      if (seconds > 0) this.journeySeconds = seconds;
+      this.godMode = params.has("god");
+    }
     window.addEventListener("keydown", this.onKey);
     document.addEventListener("visibilitychange", this.onVisibility);
+  }
+
+  /** How far along the journey we are, 0 to 1. */
+  get progress(): number {
+    return clamp(this.elapsed / this.journeySeconds, 0, 1);
   }
 
   run(): void {
@@ -83,14 +103,15 @@ export class Game {
     this.scale = clamp(Math.min(w, h) / 720, 0.65, 1.35);
     this.player.r = CONFIG.playerRadius * this.scale;
     this.seedStars();
-    if (this.state === "playing" || this.state === "paused") this.keepPlayerInside();
-    else this.placePlayer();
+    if (this.state === "ready") this.placePlayer();
+    else this.keepPlayerInside();
   }
 
   /** Starts a run from the start screen or the game over screen. */
   start(): void {
     const canRestart =
-      this.state === "ready" || (this.state === "over" && performance.now() >= this.lockedUntil);
+      this.state === "ready" ||
+      ((this.state === "over" || this.state === "won") && performance.now() >= this.lockedUntil);
     if (!canRestart) return;
     if (this.canStart && !this.canStart()) return;
     this.startRun();
@@ -152,6 +173,10 @@ export class Game {
     if (this.state === "paused") return;
     if (this.state === "playing") this.stepPlaying(dt);
     else if (this.state === "ready") this.movePlayer(dt);
+    else if (this.state === "won") {
+      this.glide(dt);
+      this.moveWorld(dt);
+    }
 
     this.emitTrail(dt);
     this.stepParticles(dt);
@@ -160,17 +185,20 @@ export class Game {
 
   private stepPlaying(dt: number): void {
     this.elapsed += dt;
-    const s = Math.floor(this.elapsed * CONFIG.scorePerSecond);
-    if (s !== this.score) {
-      this.score = s;
-      this.onScore?.(s);
+    const p = this.progress;
+    this.score = Math.floor(p * WIN_SCORE);
+    this.scoreTimer += dt;
+    if (this.scoreTimer >= 0.066) {
+      this.scoreTimer = 0;
+      this.onScore?.(this.score);
     }
     if (this.grace > 0) this.grace -= dt;
 
-    this.spawnThings(dt, difficulty(this.elapsed));
+    this.spawnThings(dt, difficulty(p), p);
     this.movePlayer(dt);
     this.moveWorld(dt);
-    if (this.grace <= 0) this.checkCollisions();
+    if (this.grace <= 0 && !this.godMode) this.checkCollisions();
+    if (this.state === "playing" && p >= 1) this.win();
   }
 
   // player
@@ -254,19 +282,21 @@ export class Game {
 
   // world
 
-  private spawnThings(dt: number, d: number): void {
+  private spawnThings(dt: number, d: number, progress: number): void {
     this.spawnTimer -= dt;
     while (this.spawnTimer <= 0) {
-      const count = Math.random() < d * 0.5 ? 2 : 1;
-      for (let i = 0; i < count; i++) {
-        this.hazards.push(spawnHazard(this.w, this.h, this.scale, d, this.player.x));
+      if (progress < HAZARDS_END) {
+        const count = Math.random() < d * 0.5 ? 2 : 1;
+        for (let i = 0; i < count; i++) {
+          this.hazards.push(spawnHazard(this.w, this.h, this.scale, d, this.player.x));
+        }
       }
       this.spawnTimer += hazardInterval(d) * rand(0.7, 1.3);
     }
 
     this.wellTimer -= dt;
     if (this.wellTimer <= 0) {
-      this.wells.push(spawnWell(this.w, this.scale));
+      if (progress < WELLS_END) this.wells.push(spawnWell(this.w, this.scale));
       this.wellTimer = lerp(CONFIG.wellIntervalStart, CONFIG.wellIntervalEnd, d) * rand(0.8, 1.2);
     }
   }
@@ -311,6 +341,7 @@ export class Game {
     this.particles = [];
     this.elapsed = 0;
     this.score = 0;
+    this.scoreTimer = 0;
     this.newBest = false;
     this.shake = 0;
     this.grace = 0;
@@ -328,8 +359,7 @@ export class Game {
   private die(): void {
     const p = this.player;
     this.state = "over";
-    this.newBest = this.score > this.best;
-    if (this.newBest) this.best = this.score;
+    this.settleBest();
     this.lockedUntil = performance.now() + RESTART_DELAY_MS;
     if (!this.reduceMotion) this.shake = 14 * this.scale;
     this.canvas.style.cursor = "default";
@@ -349,6 +379,30 @@ export class Game {
       });
     }
     this.onStateChange?.(this.state);
+  }
+
+  private win(): void {
+    this.state = "won";
+    this.score = WIN_SCORE;
+    this.settleBest();
+    this.lockedUntil = performance.now() + WIN_CARD_DELAY_MS;
+    this.canvas.style.cursor = "default";
+    this.onScore?.(this.score);
+    this.onStateChange?.(this.state);
+  }
+
+  private settleBest(): void {
+    this.newBest = this.score > this.best;
+    if (this.newBest) this.best = this.score;
+  }
+
+  // after arriving, the ship drifts to the middle and hovers
+  private glide(dt: number): void {
+    const p = this.player;
+    p.vx += ((this.w / 2 - p.x) * 24 - p.vx * 8.8) * dt;
+    p.vy += ((this.h * 0.58 - p.y) * 24 - p.vy * 8.8) * dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
   }
 
   // effects
@@ -399,7 +453,7 @@ export class Game {
   }
 
   private driftStars(dt: number): void {
-    const boost = this.state === "playing" ? 1 + difficulty(this.elapsed) * 1.2 : 1;
+    const boost = this.state === "playing" ? 1 + difficulty(this.progress) * 1.2 : 1;
     for (const s of this.stars) {
       s.y += (22 + 150 * s.z) * this.scale * boost * dt;
       if (s.y > this.h) {

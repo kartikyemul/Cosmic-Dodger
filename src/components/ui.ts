@@ -6,20 +6,24 @@ import { createGameOver } from "./game-over";
 import { createHud } from "./hud";
 import { createPause } from "./pause";
 import { createStartScreen } from "./start-screen";
+import { createVictory } from "./victory";
 
 export function mountUi(root: HTMLElement, game: Game): void {
   const start = createStartScreen(game);
   const hud = createHud(game);
   const over = createGameOver(game);
   const pause = createPause(game);
-  root.append(hud.el, start.el, over.el, pause.el);
+  const victory = createVictory(game);
+  root.append(hud.el, start.el, over.el, pause.el, victory.el);
 
   const show = (state: GameState): void => {
     start.setOpen(state === "ready");
     hud.setOpen(state === "playing" || state === "paused");
     over.setOpen(state === "over");
     pause.setOpen(state === "paused");
-    if (state === "over" && game.newBest) saveBest(game.best);
+    victory.setOpen(state === "won");
+    const finished = state === "over" || state === "won";
+    if (finished && game.newBest) saveBest(game.best);
   };
 
   game.canStart = () => start.confirmTag();

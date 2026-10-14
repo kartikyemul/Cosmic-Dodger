@@ -21,3 +21,10 @@ export function showPanel(el: HTMLElement, open: boolean): void {
 }
 
 export const pad = (n: number): string => String(n).padStart(6, "0");
+
+export function formatTime(seconds: number): string {
+  const total = Math.floor(seconds);
+  const m = Math.floor(total / 60);
+  const s = String(total % 60).padStart(2, "0");
+  return `${m}:${s}`;
+}

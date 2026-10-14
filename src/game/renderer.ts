@@ -1,62 +1,69 @@
+import { Environment } from "./environment";
 import type { Game } from "./game";
 import { clamp, lerp, rand } from "./math";
 import { withAlpha, type Palette } from "./palette";
 import type { Hazard, Well } from "./types";
 
-/**
- * Draws one frame. It only reads game state, never changes it.
- * `alpha` (0 to 1) blends between the previous and current physics step.
- */
 export class Renderer {
-  private backdrop: CanvasGradient | null = null;
-  private bw = 0;
-  private bh = 0;
+  private readonly env: Environment;
+  private haze: CanvasGradient | null = null;
+  private hazeW = 0;
+  private hazeH = 0;
 
   constructor(
     private readonly ctx: CanvasRenderingContext2D,
     private readonly c: Palette,
-  ) {}
+  ) {
+    this.env = new Environment(c);
+  }
 
   draw(g: Game, alpha: number, now: number): void {
-    const { ctx, c } = this;
+    const { ctx } = this;
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
-    ctx.fillStyle = c.void;
-    ctx.fillRect(0, 0, g.w, g.h);
-    this.drawBackdrop(g);
+
+    this.env.update(g.progress, now, g.w, g.h);
+    this.env.drawSky(ctx, g.w, g.h);
+    this.drawHaze(g);
 
     ctx.save();
     if (g.shake > 0.2) ctx.translate(rand(-g.shake, g.shake), rand(-g.shake, g.shake));
     this.drawStars(g);
+    this.env.drawGround(ctx, g.w, g.h, now);
     for (const wl of g.wells) this.drawWell(wl, g, alpha, now);
     for (const hz of g.hazards) this.drawHazard(hz, g, alpha);
     if (g.state !== "over") this.drawPlayer(g, alpha, now);
     this.drawParticles(g);
     ctx.restore();
-
   }
 
-  private drawBackdrop(g: Game): void {
-    if (!this.backdrop || this.bw !== g.w || this.bh !== g.h) {
+  // violet glow at the bottom of the screen, only in deep space
+  private drawHaze(g: Game): void {
+    if (this.env.hazeAlpha < 0.01) return;
+    if (!this.haze || this.hazeW !== g.w || this.hazeH !== g.h) {
       const cx = g.w / 2;
       const cy = g.h * 1.05;
       const gr = this.ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(g.w, g.h) * 0.85);
       gr.addColorStop(0, withAlpha(this.c.violet, 0.2));
       gr.addColorStop(0.55, withAlpha(this.c.violet, 0.05));
       gr.addColorStop(1, withAlpha(this.c.violet, 0));
-      this.backdrop = gr;
-      this.bw = g.w;
-      this.bh = g.h;
+      this.haze = gr;
+      this.hazeW = g.w;
+      this.hazeH = g.h;
     }
-    this.ctx.fillStyle = this.backdrop;
+    this.ctx.globalAlpha = this.env.hazeAlpha;
+    this.ctx.fillStyle = this.haze;
     this.ctx.fillRect(0, 0, g.w, g.h);
+    this.ctx.globalAlpha = 1;
   }
 
   private drawStars(g: Game): void {
+    const fade = this.env.starAlpha;
+    if (fade < 0.01) return;
     const { ctx, c } = this;
     ctx.fillStyle = c.text;
     for (const s of g.stars) {
-      ctx.globalAlpha = 0.2 + 0.6 * s.z;
+      ctx.globalAlpha = (0.2 + 0.6 * s.z) * fade;
       const size = 0.8 + s.z * 1.6;
       ctx.fillRect(s.x, s.y, size, size);
     }
@@ -70,7 +77,6 @@ export class Renderer {
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
 
-    // Rings that slide inward show which way the pull goes.
     ctx.strokeStyle = c.violet;
     ctx.lineWidth = 1.5 * g.scale;
     for (let i = 0; i < 3; i++) {
@@ -103,6 +109,7 @@ export class Renderer {
 
   private drawHazard(hz: Hazard, g: Game, alpha: number): void {
     const { ctx, c } = this;
+    const day = this.env.daylight;
     ctx.save();
     ctx.translate(lerp(hz.px, hz.x, alpha), lerp(hz.py, hz.y, alpha));
     ctx.rotate(hz.angle);
@@ -117,16 +124,18 @@ export class Renderer {
       else ctx.lineTo(cx, cy);
     });
     ctx.closePath();
-    ctx.fillStyle = withAlpha(c.magenta, 0.1);
+
+    // a dark body keeps the rocks readable once the sky gets bright
+    ctx.fillStyle = `rgba(24, 4, 20, ${0.25 + 0.45 * day})`;
     ctx.fill();
 
-    // A wide faint stroke plus a thin bright one fakes a glow without the cost of shadowBlur.
-    ctx.globalCompositeOperation = "lighter";
     ctx.strokeStyle = c.magenta;
-    ctx.globalAlpha = 0.16;
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = 0.16 * (1 - 0.5 * day);
     ctx.lineWidth = 8 * g.scale;
     ctx.stroke();
-    ctx.globalAlpha = 0.95;
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
     ctx.lineWidth = 2 * g.scale;
     ctx.stroke();
     ctx.restore();
@@ -135,6 +144,7 @@ export class Renderer {
   private drawPlayer(g: Game, alpha: number, now: number): void {
     if (g.grace > 0 && Math.floor(now / 90) % 2 === 0) return;
     const { ctx, c } = this;
+    const day = this.env.daylight;
     const p = g.player;
     const x = lerp(p.px, p.x, alpha);
     const y = lerp(p.py, p.y, alpha);
@@ -145,14 +155,13 @@ export class Renderer {
 
     ctx.globalCompositeOperation = "lighter";
     const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 4.2);
-    glow.addColorStop(0, withAlpha(c.cyan, 0.35));
+    glow.addColorStop(0, withAlpha(c.cyan, 0.35 * (1 - 0.5 * day)));
     glow.addColorStop(1, withAlpha(c.cyan, 0));
     ctx.fillStyle = glow;
     ctx.beginPath();
     ctx.arc(0, 0, r * 4.2, 0, Math.PI * 2);
     ctx.fill();
 
-    // The ship leans into its movement.
     ctx.rotate(clamp(p.vx / 1400, -0.45, 0.45));
     ctx.beginPath();
     ctx.moveTo(0, -r * 1.3);
@@ -165,12 +174,13 @@ export class Renderer {
     ctx.fillStyle = c.ink;
     ctx.fill();
 
-    ctx.globalCompositeOperation = "lighter";
     ctx.lineJoin = "round";
     ctx.strokeStyle = c.cyan;
+    ctx.globalCompositeOperation = "lighter";
     ctx.globalAlpha = 0.22;
     ctx.lineWidth = 7 * g.scale;
     ctx.stroke();
+    ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
     ctx.lineWidth = 2 * g.scale;
     ctx.stroke();
