@@ -358,6 +358,7 @@ export class Game {
 
   private die(): void {
     const p = this.player;
+    navigator.vibrate?.(40);
     this.state = "over";
     this.settleBest();
     this.lockedUntil = performance.now() + RESTART_DELAY_MS;
