@@ -1,7 +1,8 @@
 import "./ui.css";
+import { audio } from "@/game/audio";
 import type { Game } from "@/game/game";
 import type { GameState } from "@/game/types";
-import { saveBest } from "@/services/storage";
+import { addRun, saveBest } from "@/services/storage";
 import { createGameOver } from "./game-over";
 import { createHud } from "./hud";
 import { createPause } from "./pause";
@@ -16,14 +17,23 @@ export function mountUi(root: HTMLElement, game: Game): void {
   const victory = createVictory(game);
   root.append(hud.el, start.el, over.el, pause.el, victory.el);
 
+  let last: GameState = game.state;
+
   const show = (state: GameState): void => {
+    if (state === "over" || state === "won") {
+      if (game.score > 0) addRun({ tag: start.getTag(), score: game.score, time: game.elapsed });
+      if (game.newBest) saveBest(game.best);
+    }
+    if (state === "playing" && last !== "paused") audio.play("start");
+    if (state === "over") audio.play("over");
+    if (state === "won") audio.play("win");
+    last = state;
+
     start.setOpen(state === "ready");
     hud.setOpen(state === "playing" || state === "paused");
     over.setOpen(state === "over");
     pause.setOpen(state === "paused");
     victory.setOpen(state === "won");
-    const finished = state === "over" || state === "won";
-    if (finished && game.newBest) saveBest(game.best);
   };
 
   game.canStart = () => start.confirmTag();

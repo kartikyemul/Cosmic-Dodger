@@ -1,5 +1,6 @@
 import { RESTART_DELAY_MS, type Game } from "@/game/game";
 import { find, html, pad, showPanel, type Panel } from "./dom";
+import { renderRuns } from "./runs";
 
 export function createGameOver(game: Game): Panel {
   const el = html<HTMLElement>(`
@@ -9,6 +10,7 @@ export function createGameOver(game: Game): Panel {
         <p class="item final-score numeric">000000</p>
         <p class="item badge" data-show="false">New best</p>
         <p class="item hint">Best <span class="numeric best-value">000000</span></p>
+        <ol class="item runs" data-empty="true" aria-label="Your best runs"></ol>
         <button class="item btn btn-primary" type="button">Play again</button>
         <p class="item hint">or press Space</p>
       </div>
@@ -17,6 +19,7 @@ export function createGameOver(game: Game): Panel {
   const scoreEl = find<HTMLElement>(el, ".final-score");
   const bestEl = find<HTMLElement>(el, ".best-value");
   const badge = find<HTMLElement>(el, ".badge");
+  const runsEl = find<HTMLElement>(el, ".runs");
   const button = find<HTMLButtonElement>(el, ".btn-primary");
   let timer = 0;
 
@@ -32,6 +35,7 @@ export function createGameOver(game: Game): Panel {
       scoreEl.textContent = pad(game.score);
       bestEl.textContent = pad(game.best);
       badge.dataset.show = String(game.newBest);
+      renderRuns(runsEl);
       button.disabled = true;
       timer = window.setTimeout(() => {
         button.disabled = false;

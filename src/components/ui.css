@@ -278,3 +278,39 @@
 .icon-btn:active {
   transform: scale(0.9);
 }
+
+/* best runs list */
+.runs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+.runs[data-empty="true"] {
+  display: none;
+}
+.runs li {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr auto;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.runs li span:first-child {
+  color: var(--color-text-tertiary);
+}
+
+/* mute button sits on the left of the HUD */
+.mute {
+  justify-self: start;
+}
+.mute .slash {
+  opacity: 0;
+}
+.mute[data-muted="true"] .slash {
+  opacity: 1;
+}

@@ -1,4 +1,5 @@
 import { WIN_SCORE, type Game } from "@/game/game";
+import { audio } from "@/game/audio";
 import { find, html, pad, showPanel } from "./dom";
 
 export interface Hud {
@@ -10,7 +11,14 @@ export interface Hud {
 export function createHud(game: Game): Hud {
   const el = html<HTMLElement>(`
     <div class="hud" data-open="false" inert>
-      <span></span>
+      <button class="icon-btn mute glass" type="button" aria-label="Mute">
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="currentColor"
+          stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7h3l4-3v10l-4-3H3z" />
+          <path d="M13 6.5a4 4 0 0 1 0 5" />
+          <path class="slash" d="M3 15L15 3" />
+        </svg>
+      </button>
       <div class="hud-center">
         <div class="glass pill score numeric">000000</div>
         <div class="track"><div class="track-fill"></div></div>
@@ -27,7 +35,16 @@ export function createHud(game: Game): Hud {
   const scoreEl = find<HTMLElement>(el, ".score");
   const bestEl = find<HTMLElement>(el, ".best-value");
   const fill = find<HTMLElement>(el, ".track-fill");
-  find<HTMLButtonElement>(el, ".icon-btn").addEventListener("click", () => game.pause());
+  find<HTMLButtonElement>(el, ".icon-btn:not(.mute)").addEventListener("click", () => game.pause());
+
+  const mute = find<HTMLButtonElement>(el, ".mute");
+  const syncMute = (): void => {
+    mute.dataset.muted = String(audio.muted);
+    mute.setAttribute("aria-label", audio.muted ? "Unmute" : "Mute");
+  };
+  mute.addEventListener("click", () => audio.toggleMute());
+  audio.onChange = syncMute;
+  syncMute();
 
   const setScore = (score: number): void => {
     scoreEl.textContent = pad(score);
