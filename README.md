@@ -1,7 +1,7 @@
 # Cosmic Dodger: Neon Gravity
 
 A small arcade game that runs fully in the browser. No backend, no accounts, no database.
-Fly from deep space to a green planet and dodge everything on the way.
+Fly home through the solar system, from Neptune past every planet to Earth, and dodge everything on the way.
 
 ```bash
 npm install

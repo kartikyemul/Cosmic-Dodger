@@ -1,6 +1,6 @@
 import { loadMuted, saveMuted } from "@/services/storage";
 
-type Sound = "start" | "over" | "win";
+type Sound = "start" | "over" | "win" | "planet";
 
 let ctx: AudioContext | null = null;
 let muted = loadMuted();
@@ -60,6 +60,9 @@ export const audio = {
       } else if (sound === "over") {
         tone(300, 0, 0.45, "sawtooth", 0.1, 70);
         tone(150, 0, 0.5, "square", 0.05, 50);
+      } else if (sound === "planet") {
+        tone(880, 0, 0.25, "sine", 0.07);
+        tone(1318, 0.1, 0.35, "sine", 0.06);
       } else {
         [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.16, 0.5, "sine", 0.12));
       }

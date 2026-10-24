@@ -1,5 +1,6 @@
 import { WIN_SCORE, type Game } from "@/game/game";
 import { audio } from "@/game/audio";
+import { nextStage } from "@/game/journey";
 import { find, html, pad, showPanel } from "./dom";
 
 export interface Hud {
@@ -22,7 +23,7 @@ export function createHud(game: Game): Hud {
       <div class="hud-center">
         <div class="glass pill score numeric">000000</div>
         <div class="track"><div class="track-fill"></div></div>
-        <div class="best-line">Best <span class="numeric best-value">000000</span></div>
+        <div class="best-line">Next <span class="next-name">Neptune</span> · Best <span class="numeric best-value">000000</span></div>
       </div>
       <button class="icon-btn glass" type="button" aria-label="Pause">
         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
@@ -35,6 +36,7 @@ export function createHud(game: Game): Hud {
   const scoreEl = find<HTMLElement>(el, ".score");
   const bestEl = find<HTMLElement>(el, ".best-value");
   const fill = find<HTMLElement>(el, ".track-fill");
+  const nextEl = find<HTMLElement>(el, ".next-name");
   find<HTMLButtonElement>(el, ".icon-btn:not(.mute)").addEventListener("click", () => game.pause());
 
   const mute = find<HTMLButtonElement>(el, ".mute");
@@ -50,6 +52,7 @@ export function createHud(game: Game): Hud {
     scoreEl.textContent = pad(score);
     bestEl.textContent = pad(Math.max(game.best, score));
     fill.style.transform = `scaleX(${Math.min(1, score / WIN_SCORE)})`;
+    nextEl.textContent = nextStage(score / WIN_SCORE).name;
   };
 
   return {
