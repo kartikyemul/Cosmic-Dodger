@@ -1,8 +1,7 @@
+import { STAGES } from "./journey";
 import { clamp, lerp, rand, smoothstep } from "./math";
 import type { Palette } from "./palette";
-import { PlanetBake } from "./planet";
-
-const PLANET_SIZE = 512;
+import { PlanetBake, type PlanetKind } from "./planet";
 
 type RGB = [number, number, number];
 
@@ -12,14 +11,34 @@ interface SkyStop {
   bottom: RGB;
 }
 
-// deep space -> deep blue -> sunrise over the planet -> daylight
+// deep space for most of the trip, a scorched sky near the sun, then daylight at Earth
 const SKY: SkyStop[] = [
   { at: 0.0, top: [0, 0, 0], bottom: [10, 8, 30] },
-  { at: 0.4, top: [2, 5, 18], bottom: [10, 20, 48] },
-  { at: 0.65, top: [8, 20, 52], bottom: [34, 70, 120] },
-  { at: 0.85, top: [20, 62, 124], bottom: [110, 170, 205] },
+  { at: 0.78, top: [2, 5, 18], bottom: [10, 20, 48] },
+  { at: 0.875, top: [22, 8, 10], bottom: [96, 42, 20] },
+  { at: 0.93, top: [10, 30, 80], bottom: [60, 100, 150] },
   { at: 1.0, top: [34, 92, 160], bottom: [156, 208, 214] },
 ];
+
+interface PlanetInfo {
+  kind: PlanetKind;
+  size: number;
+  rings?: boolean;
+  rim: RGB | null;
+}
+
+// same order as STAGES in journey.ts (Earth has its own landing scene)
+const PLANETS: PlanetInfo[] = [
+  { kind: "neptune", size: 0.8, rim: [90, 140, 255] },
+  { kind: "uranus", size: 0.75, rim: [150, 230, 240] },
+  { kind: "saturn", size: 0.95, rings: true, rim: [240, 215, 160] },
+  { kind: "jupiter", size: 1.15, rim: [240, 200, 150] },
+  { kind: "mars", size: 0.55, rim: [230, 130, 90] },
+  { kind: "venus", size: 0.7, rim: [255, 220, 150] },
+  { kind: "mercury", size: 0.45, rim: null },
+];
+
+const HALF_WINDOW = 0.05;
 
 const HILLS = [
   { base: 0.7, amp: 0.07, wave: 0.0045, speed: 6, color: "rgb(74, 150, 150)" },
@@ -87,9 +106,8 @@ function makeCloudSprite(): HTMLCanvasElement {
 }
 
 /**
- * The journey: deep space slowly turns into a sunrise over a green planet,
- * then the sky, clouds, hills and glowing spores of its surface.
- * Everything is driven by one number, the progress from 0 to 1.
+ * Everything behind the game. One number (progress, 0 to 1) decides what is on screen:
+ * seven planets drift past one by one, the sun grows, and at the end Earth rises.
  */
 export class Environment {
   shown = 0;
@@ -100,8 +118,9 @@ export class Environment {
   private lastNow = 0;
   private w = 0;
   private h = 0;
-  private bake: PlanetBake | null = new PlanetBake(PLANET_SIZE);
-  private planet: HTMLCanvasElement | null = null;
+  private readonly textures = new Map<PlanetKind, HTMLCanvasElement>();
+  private readonly queue: PlanetKind[] = [...PLANETS.map((p) => p.kind), "earth"];
+  private bake: PlanetBake | null = null;
   private readonly cloudSprite = makeCloudSprite();
   private clouds: Cloud[] = [];
   private motes: Mote[] = [];
@@ -118,9 +137,9 @@ export class Environment {
     this.shown += (target - this.shown) * (1 - Math.exp(-rate * dt));
 
     const p = this.shown;
-    this.starAlpha = 1 - smoothstep(0.5, 0.82, p);
-    this.daylight = smoothstep(0.55, 1, p);
-    this.hazeAlpha = 1 - smoothstep(0.05, 0.45, p);
+    this.starAlpha = 1 - smoothstep(0.9, 0.97, p);
+    this.daylight = smoothstep(0.92, 1, p);
+    this.hazeAlpha = 1 - smoothstep(0.55, 0.8, p);
 
     if (w !== this.w || h !== this.h) {
       this.w = w;
@@ -139,7 +158,8 @@ export class Environment {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
 
-    const sun = smoothstep(0.42, 0.9, this.shown);
+    // the sun gets bigger as you fly in towards Mercury and then Earth
+    const sun = smoothstep(0.62, 0.9, this.shown);
     if (sun < 0.01) return;
     const cx = w * 0.84;
     const cy = h * 0.1;
@@ -156,16 +176,71 @@ export class Environment {
   }
 
   drawGround(ctx: CanvasRenderingContext2D, w: number, h: number, now: number): void {
-    this.drawPlanet(ctx, w, h);
+    PLANETS.forEach((planet, i) => this.drawFlyby(ctx, planet, i, w, h));
+    this.drawEarth(ctx, w, h);
     this.drawClouds(ctx);
     this.drawHills(ctx, w, h);
     this.drawMotes(ctx, now);
   }
 
-  private drawPlanet(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  // a planet grows as you approach, then slides off to the side as you pass it
+  private drawFlyby(ctx: CanvasRenderingContext2D, info: PlanetInfo, index: number, w: number, h: number): void {
+    const at = STAGES[index]?.at ?? 0;
+    const t = (this.shown - at) / HALF_WINDOW;
+    if (Math.abs(t) >= 1) return;
+
+    const near = 1 - Math.abs(t);
+    const u = smoothstep(-1, 1, t);
+    const side = index % 2 === 0 ? 1 : -1;
+    const base = Math.max(w, h * 0.8);
+    const R = base * 0.42 * info.size * (0.12 + 0.88 * near * near);
+    const cx = w * (0.5 + side * (0.18 + 0.34 * u));
+    const cy = h * (0.26 + 0.34 * u);
+    const alpha = smoothstep(0, 0.25, near) * 0.92;
+    const texture = this.textures.get(info.kind);
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    if (info.rim) this.drawRim(ctx, cx, cy, R, info.rim, w, h);
+    if (info.rings) this.drawRings(ctx, cx, cy, R, false);
+    if (texture) ctx.drawImage(texture, cx - R, cy - R, R * 2, R * 2);
+    if (info.rings) this.drawRings(ctx, cx, cy, R, true);
+    ctx.restore();
+  }
+
+  private drawRim(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number, c: RGB, w: number, h: number): void {
+    const [r, g, b] = c;
+    const rim = ctx.createRadialGradient(cx, cy, R * 0.97, cx, cy, R * 1.12);
+    rim.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0)`);
+    rim.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, 0.4)`);
+    rim.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = rim;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  }
+
+  // Saturn's rings: the back half is drawn first, the front half over the planet
+  private drawRings(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number, front: boolean): void {
+    ctx.save();
+    ctx.lineWidth = Math.max(1, R * 0.07);
+    const from = front ? 0 : Math.PI;
+    const to = front ? Math.PI : Math.PI * 2;
+    [1.45, 1.62, 1.8, 2.0].forEach((f, i) => {
+      ctx.strokeStyle = `rgba(226, 198, 150, ${[0.55, 0.35, 0.5, 0.3][i] ?? 0.4})`;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, R * f, R * f * 0.26, -0.38, from, to);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  // the last stretch: Earth rises from below, then hills and clouds take over
+  private drawEarth(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const p = this.shown;
-    const alpha = 1 - smoothstep(0.8, 0.95, p);
-    const grow = smoothstep(0.22, 0.9, p);
+    const alpha = 1 - smoothstep(0.975, 0.998, p);
+    const grow = smoothstep(0.93, 0.995, p);
     if (alpha < 0.01) return;
 
     const base = Math.max(w, h * 0.8);
@@ -177,18 +252,11 @@ export class Environment {
 
     ctx.save();
     ctx.globalAlpha = alpha;
+    this.drawRim(ctx, cx, cy, R, [110, 200, 255], w, h);
 
-    ctx.globalCompositeOperation = "lighter";
-    const rim = ctx.createRadialGradient(cx, cy, R * 0.97, cx, cy, R * 1.1);
-    rim.addColorStop(0, "rgba(110, 200, 255, 0)");
-    rim.addColorStop(0.3, "rgba(110, 200, 255, 0.55)");
-    rim.addColorStop(1, "rgba(110, 200, 255, 0)");
-    ctx.fillStyle = rim;
-    ctx.fillRect(0, 0, w, h);
-
-    ctx.globalCompositeOperation = "source-over";
-    if (this.planet) {
-      ctx.drawImage(this.planet, cx - R, cy - R, R * 2, R * 2);
+    const texture = this.textures.get("earth");
+    if (texture) {
+      ctx.drawImage(texture, cx - R, cy - R, R * 2, R * 2);
     } else {
       ctx.fillStyle = "rgb(24, 90, 70)";
       ctx.beginPath();
@@ -210,7 +278,7 @@ export class Environment {
   }
 
   private drawClouds(ctx: CanvasRenderingContext2D): void {
-    const fade = smoothstep(0.7, 0.9, this.shown);
+    const fade = smoothstep(0.95, 0.98, this.shown);
     if (fade < 0.01) return;
     ctx.save();
     for (const c of this.clouds) {
@@ -221,9 +289,9 @@ export class Environment {
   }
 
   private drawHills(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-    const fade = smoothstep(0.72, 0.92, this.shown);
+    const fade = smoothstep(0.955, 0.99, this.shown);
     if (fade < 0.01) return;
-    const rise = smoothstep(0.72, 1, this.shown);
+    const rise = smoothstep(0.955, 1, this.shown);
 
     ctx.save();
     ctx.globalAlpha = fade;
@@ -250,7 +318,7 @@ export class Environment {
   }
 
   private drawMotes(ctx: CanvasRenderingContext2D, now: number): void {
-    const fade = smoothstep(0.82, 0.97, this.shown);
+    const fade = smoothstep(0.975, 0.998, this.shown);
     if (fade < 0.01) return;
     const colors = [this.palette.cyan, this.palette.lime, this.palette.violet];
     ctx.save();
@@ -270,10 +338,14 @@ export class Environment {
     ctx.restore();
   }
 
+  // planets are painted one after another in the background, a few ms per frame
   private stepBake(): void {
+    if (!this.bake) {
+      const kind = this.queue.shift();
+      if (!kind) return;
+      this.bake = new PlanetBake(kind === "earth" ? 512 : 256, kind);
+    }
     const bake = this.bake;
-    if (!bake) return;
-    // spend at most a few milliseconds per frame so gameplay never stutters
     const start = performance.now();
     while (!bake.done && performance.now() - start < 3) bake.step(2);
     if (!bake.done) return;
@@ -284,7 +356,7 @@ export class Environment {
     const ctx = canvas.getContext("2d");
     if (ctx) {
       ctx.putImageData(new ImageData(bake.data, bake.size, bake.size), 0, 0);
-      this.planet = canvas;
+      this.textures.set(bake.kind, canvas);
     }
     this.bake = null;
   }

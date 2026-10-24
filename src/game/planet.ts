@@ -1,5 +1,8 @@
 import { clamp, smoothstep } from "./math";
 
+export type PlanetKind =
+  | "neptune" | "uranus" | "saturn" | "jupiter" | "mars" | "venus" | "mercury" | "earth";
+
 function hash(ix: number, iy: number, iz: number): number {
   let h = Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(iz, 1442695041);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -52,13 +55,95 @@ const mixRgb = (a: RGB, b: RGB, t: number): RGB => [
   mix(a[1], b[1], t),
   mix(a[2], b[2], t),
 ];
+const scale = (c: RGB, k: number): RGB => [c[0] * k, c[1] * k, c[2] * k];
 
-const DEEP: RGB = [10, 52, 96];
-const SHALLOW: RGB = [34, 132, 150];
-const LOWLAND: RGB = [36, 126, 58];
-const MIDLAND: RGB = [72, 164, 64];
-const HIGHLAND: RGB = [40, 104, 92];
-const BLUE_FOREST: RGB = [48, 132, 140];
+interface Surface {
+  color: RGB;
+  water: boolean;
+}
+
+function earth(x: number, y: number, z: number): Surface {
+  const height = fbm(x * 2.1 + 3.7, y * 2.1 + 3.7, z * 2.1 + 3.7, 4);
+  const detail = fbm(x * 7 + 11, y * 7 + 11, z * 7 + 11, 3);
+  const sea = 0.47;
+  let color: RGB;
+  let water = false;
+  if (height < sea) {
+    water = true;
+    color = mixRgb([34, 132, 150], [10, 52, 96], smoothstep(0, 0.35, (sea - height) / sea));
+  } else {
+    const h = (height - sea) / (1 - sea);
+    color = mixRgb([36, 126, 58], [72, 164, 64], clamp(h * 3, 0, 1));
+    color = mixRgb(color, [40, 104, 92], smoothstep(0.3, 0.6, h));
+    const blue = fbm(x * 3.2 + 21, y * 3.2 + 21, z * 3.2 + 21, 2);
+    color = mixRgb(color, [48, 132, 140], smoothstep(0.55, 0.75, blue) * 0.7);
+    color = scale(color, 0.82 + detail * 0.36);
+  }
+  const cloud = fbm(x * 3.4 + 40, y * 3.4 + 40, z * 3.4 + 40, 3);
+  color = mixRgb(color, [255, 255, 255], smoothstep(0.52, 0.72, cloud) * 0.85);
+  return { color, water };
+}
+
+function jupiter(x: number, y: number, z: number): Surface {
+  const warp = fbm(x * 2.5 + 5, y * 0.8 + 5, z * 2.5 + 5, 3);
+  const band = Math.sin(y * 16 + warp * 4.5) * 0.5 + 0.5;
+  let c = mixRgb([232, 212, 176], [168, 104, 62], smoothstep(0.25, 0.75, band));
+  c = mixRgb(c, [120, 76, 48], smoothstep(0.8, 1, band) * 0.6);
+  const d = ((Math.atan2(x, z) - 0.6) / 0.42) ** 2 + ((y + 0.28) / 0.13) ** 2;
+  c = mixRgb(c, [176, 62, 42], (1 - smoothstep(0.4, 1, d)) * 0.9);
+  return { color: scale(c, 0.92 + warp * 0.16), water: false };
+}
+
+function saturn(x: number, y: number, z: number): Surface {
+  const warp = fbm(x * 2 + 2, y * 0.8 + 2, z * 2 + 2, 3);
+  const band = Math.sin(y * 12 + warp * 2) * 0.5 + 0.5;
+  return { color: mixRgb([208, 176, 116], [240, 222, 172], band), water: false };
+}
+
+function uranus(x: number, y: number, z: number): Surface {
+  const warp = fbm(x * 2 + 8, y * 0.8 + 8, z * 2 + 8, 2);
+  const band = Math.sin(y * 7 + warp) * 0.5 + 0.5;
+  return { color: mixRgb([146, 214, 224], [176, 238, 242], band * 0.8), water: false };
+}
+
+function neptune(x: number, y: number, z: number): Surface {
+  const warp = fbm(x * 2 + 4, y * 0.8 + 4, z * 2 + 4, 3);
+  const band = Math.sin(y * 10 + warp * 3) * 0.5 + 0.5;
+  let c = mixRgb([34, 66, 184], [70, 112, 226], band);
+  const streak = fbm(x * 5 + 1, y * 14 + 1, z * 5 + 1, 3);
+  c = mixRgb(c, [230, 240, 255], smoothstep(0.62, 0.76, streak) * 0.7);
+  const d = ((Math.atan2(x, z) - 0.8) / 0.4) ** 2 + ((y - 0.25) / 0.15) ** 2;
+  c = mixRgb(c, [14, 26, 104], (1 - smoothstep(0.4, 1, d)) * 0.8);
+  return { color: c, water: false };
+}
+
+function mars(x: number, y: number, z: number): Surface {
+  const n = fbm(x * 2.4 + 2, y * 2.4 + 2, z * 2.4 + 2, 4);
+  const fine = fbm(x * 9 + 6, y * 9 + 6, z * 9 + 6, 2);
+  let c = mixRgb([178, 86, 50], [120, 58, 42], smoothstep(0.42, 0.62, n));
+  c = scale(c, 0.85 + fine * 0.3);
+  c = mixRgb(c, [240, 236, 232], smoothstep(0.82, 0.92, Math.abs(y)));
+  return { color: c, water: false };
+}
+
+function venus(x: number, y: number, z: number): Surface {
+  const warp = fbm(x * 2 + 9, y * 3 + 9, z * 2 + 9, 3);
+  const swirl = fbm(x * 3 + warp * 2, y * 5 + warp * 2, z * 3 + warp * 2, 3);
+  return { color: mixRgb([212, 160, 90], [248, 226, 168], smoothstep(0.3, 0.7, swirl)), water: false };
+}
+
+function mercury(x: number, y: number, z: number): Surface {
+  const plains = fbm(x * 1.8 + 7, y * 1.8 + 7, z * 1.8 + 7, 3);
+  const rough = fbm(x * 9 + 3, y * 9 + 3, z * 9 + 3, 3);
+  let c = mixRgb([152, 148, 142], [96, 94, 92], smoothstep(0.5, 0.62, plains));
+  c = scale(c, 0.78 + rough * 0.5);
+  c = scale(c, 1 + (1 - smoothstep(0, 0.035, Math.abs(rough - 0.55))) * 0.25);
+  return { color: c, water: false };
+}
+
+const SURFACES: Record<PlanetKind, (x: number, y: number, z: number) => Surface> = {
+  earth, jupiter, saturn, uranus, neptune, mars, venus, mercury,
+};
 
 // light comes from the upper right, like the sun in the sky scene
 const LIGHT: RGB = [0.55, -0.55, 0.62];
@@ -73,7 +158,10 @@ export class PlanetBake {
   readonly data: Uint8ClampedArray<ArrayBuffer>;
   private row = 0;
 
-  constructor(readonly size: number) {
+  constructor(
+    readonly size: number,
+    readonly kind: PlanetKind,
+  ) {
     this.data = new Uint8ClampedArray(size * size * 4);
   }
 
@@ -88,6 +176,7 @@ export class PlanetBake {
 
   private paintRow(py: number): void {
     const size = this.size;
+    const surface = SURFACES[this.kind];
     const ny = ((py + 0.5) / size) * 2 - 1;
     for (let px = 0; px < size; px++) {
       const nx = ((px + 0.5) / size) * 2 - 1;
@@ -95,47 +184,21 @@ export class PlanetBake {
       if (r2 >= 1) continue;
       const nz = Math.sqrt(1 - r2);
 
-      // turn the sphere a little so the continents are not centred
-      const cosA = Math.cos(0.9);
-      const sinA = Math.sin(0.9);
-      const x1 = nx * cosA + nz * sinA;
-      const z1 = -nx * sinA + nz * cosA;
-      const cosB = Math.cos(0.35);
-      const sinB = Math.sin(0.35);
-      const y2 = ny * cosB - z1 * sinB;
-      const z2 = ny * sinB + z1 * cosB;
+      // turn the sphere a little so features are not centred
+      const x1 = nx * Math.cos(0.9) + nz * Math.sin(0.9);
+      const z1 = -nx * Math.sin(0.9) + nz * Math.cos(0.9);
+      const y2 = ny * Math.cos(0.35) - z1 * Math.sin(0.35);
+      const z2 = ny * Math.sin(0.35) + z1 * Math.cos(0.35);
 
-      const height = fbm(x1 * 2.1 + 3.7, y2 * 2.1 + 3.7, z2 * 2.1 + 3.7, 4);
-      const detail = fbm(x1 * 7 + 11, y2 * 7 + 11, z2 * 7 + 11, 3);
-      const sea = 0.47;
-
-      let color: RGB;
-      let water = false;
-      if (height < sea) {
-        water = true;
-        color = mixRgb(SHALLOW, DEEP, smoothstep(0, 0.35, (sea - height) / sea));
-      } else {
-        const h = (height - sea) / (1 - sea);
-        color = mixRgb(LOWLAND, MIDLAND, clamp(h * 3, 0, 1));
-        color = mixRgb(color, HIGHLAND, smoothstep(0.3, 0.6, h));
-        const blue = fbm(x1 * 3.2 + 21, y2 * 3.2 + 21, z2 * 3.2 + 21, 2);
-        color = mixRgb(color, BLUE_FOREST, smoothstep(0.55, 0.75, blue) * 0.7);
-        const shade = 0.82 + detail * 0.36;
-        color = [color[0] * shade, color[1] * shade, color[2] * shade];
-      }
-
-      const cloud = fbm(x1 * 3.4 + 40, y2 * 3.4 + 40, z2 * 3.4 + 40, 3);
-      color = mixRgb(color, [255, 255, 255], smoothstep(0.52, 0.72, cloud) * 0.85);
+      const { color, water } = surface(x1, y2, z2);
 
       const facing = nx * LX + ny * LY + nz * LZ;
       const light = 0.07 + 0.98 * smoothstep(-0.25, 0.75, facing);
       let spec = 0;
       if (water) {
-        const hx = LX;
-        const hy = LY;
         const hz = LZ + 1;
-        const hl = Math.hypot(hx, hy, hz);
-        spec = Math.pow(Math.max(0, (nx * hx + ny * hy + nz * hz) / hl), 40) * 90;
+        const hl = Math.hypot(LX, LY, hz);
+        spec = Math.pow(Math.max(0, (nx * LX + ny * LY + nz * hz) / hl), 40) * 90;
       }
 
       const i = (py * size + px) * 4;
