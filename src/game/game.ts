@@ -9,9 +9,9 @@ import type { Body, GameState, Hazard, Particle, Star, Well } from "./types";
 export const RESTART_DELAY_MS = 700;
 const RESUME_GRACE = 0.8;
 const KEYBOARD_SPEED = 850;
-export const WIN_SCORE = 100000;
+export const WIN_SCORE = 40000;
 export const WIN_CARD_DELAY_MS = 2600;
-const JOURNEY_SECONDS = 300;
+const JOURNEY_SECONDS = 320;
 const HAZARDS_END = 0.93;
 const WELLS_END = 0.88;
 
@@ -186,7 +186,7 @@ export class Game {
   private stepPlaying(dt: number): void {
     this.elapsed += dt;
     const p = this.progress;
-    this.score = Math.floor(p * WIN_SCORE);
+    this.score = Math.floor((p * WIN_SCORE) / 10) * 10;
     this.scoreTimer += dt;
     if (this.scoreTimer >= 0.066) {
       this.scoreTimer = 0;
@@ -358,7 +358,6 @@ export class Game {
 
   private die(): void {
     const p = this.player;
-    navigator.vibrate?.(40);
     this.state = "over";
     this.settleBest();
     this.lockedUntil = performance.now() + RESTART_DELAY_MS;

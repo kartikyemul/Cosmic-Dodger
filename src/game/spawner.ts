@@ -6,8 +6,8 @@ const PEAK = 0.8;
 
 /** progress runs from 0 to 1 along the journey. Gets harder, then eases off near the planet. */
 export function difficulty(progress: number): number {
-  const rise = smoothstep(0, 0.55, progress) * PEAK;
-  const calm = smoothstep(0.8, 1, progress) * 0.4;
+  const rise = smoothstep(0, 0.6, progress) * PEAK;
+  const calm = smoothstep(0.9, 1, progress) * 0.4;
   return clamp(rise - calm, 0, 1);
 }
 
