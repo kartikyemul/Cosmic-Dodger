@@ -59,7 +59,11 @@ export class Input {
     this.setPosition(e);
     this.pressed = true;
     this.isDown = true;
-    this.canvas.setPointerCapture(e.pointerId);
+    try {
+      this.canvas.setPointerCapture(e.pointerId);
+    } catch {
+      // the pointer is already gone, nothing to capture
+    }
   };
 
   private onUp = (): void => {
@@ -67,7 +71,7 @@ export class Input {
   };
 
   private onKey = (e: KeyboardEvent): void => {
-    if (e.target instanceof HTMLInputElement) return;
+    if (e.target instanceof HTMLInputElement || e.repeat) return;
     if (MOVE_KEYS.has(e.code)) {
       e.preventDefault();
       this.keys.add(e.code);

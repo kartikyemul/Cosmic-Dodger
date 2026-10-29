@@ -14,4 +14,6 @@ Best score, your tag and your top 5 runs are saved on your device only.
 Built with Vite, TypeScript, HTML5 Canvas and Tailwind CSS.
 Sound is made with the Web Audio API, so there are no asset files.
 
+Run the logic tests with `npm test`.
+
 Testing shortcut in dev: `?journey=40&god` makes the trip 40 seconds long and stops you dying.

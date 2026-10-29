@@ -1,4 +1,4 @@
-const BEST_KEY = "cosmic-dodger:best";
+const BEST_KEY = "cosmic-dodger:v2:best";
 const TAG_KEY = "cosmic-dodger:tag";
 
 function read(key: string): string | null {
@@ -29,7 +29,7 @@ export const loadTag = (): string => read(TAG_KEY) ?? "";
 export const saveTag = (tag: string): void => write(TAG_KEY, tag);
 
 const MUTE_KEY = "cosmic-dodger:muted";
-const RUNS_KEY = "cosmic-dodger:runs";
+const RUNS_KEY = "cosmic-dodger:v2:runs";
 
 export const loadMuted = (): boolean => read(MUTE_KEY) === "1";
 export const saveMuted = (muted: boolean): void => write(MUTE_KEY, muted ? "1" : "0");

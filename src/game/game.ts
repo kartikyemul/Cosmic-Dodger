@@ -14,6 +14,7 @@ export const WIN_CARD_DELAY_MS = 2600;
 const JOURNEY_SECONDS = 320;
 const HAZARDS_END = 0.93;
 const WELLS_END = 0.88;
+const MAX_HAZARDS = 60;
 
 const makeBody = (x: number, y: number, r: number): Body => ({
   x, y, px: x, py: y, vx: 0, vy: 0, r,
@@ -49,6 +50,7 @@ export class Game {
   onStateChange: ((state: GameState) => void) | null = null;
   onScore: ((score: number) => void) | null = null;
   canStart: (() => boolean) | null = null;
+  onCrash: (() => void) | null = null;
 
   private readonly ctx: CanvasRenderingContext2D;
   private readonly input: Input;
@@ -62,6 +64,7 @@ export class Game {
   private keyX = 0;
   private keyY = 0;
   private scoreTimer = 0;
+  private failures = 0;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -82,6 +85,7 @@ export class Game {
     }
     window.addEventListener("keydown", this.onKey);
     document.addEventListener("visibilitychange", this.onVisibility);
+    window.addEventListener("blur", () => this.pause());
   }
 
   /** Where the finger is, only while a finger is touching the screen. */
@@ -101,6 +105,7 @@ export class Game {
   }
 
   resize(w: number, h: number, dpr: number): void {
+    if (w < 1 || h < 1) return;
     const d = Math.min(dpr, CONFIG.maxDpr);
     this.canvas.width = Math.round(w * d);
     this.canvas.height = Math.round(h * d);
@@ -165,9 +170,14 @@ export class Game {
 
       this.driftStars(dt);
       this.renderer.draw(this, this.acc / CONFIG.fixedDt, now);
+      this.failures = 0;
     } catch (err) {
-      // one bad frame should never kill the whole loop
+      // one bad frame is skipped, five in a row means something is really wrong
       console.error("frame failed", err);
+      if (++this.failures >= 5) {
+        this.onCrash?.();
+        return;
+      }
     }
     requestAnimationFrame(this.frame);
   };
@@ -276,6 +286,12 @@ export class Game {
 
   private keepPlayerInside(): void {
     const p = this.player;
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+      p.x = this.w / 2;
+      p.y = this.h * 0.78;
+      p.vx = 0;
+      p.vy = 0;
+    }
     p.x = clamp(p.x, p.r, this.w - p.r);
     p.y = clamp(p.y, p.r, this.h - p.r);
   }
@@ -294,7 +310,7 @@ export class Game {
   private spawnThings(dt: number, d: number, progress: number): void {
     this.spawnTimer -= dt;
     while (this.spawnTimer <= 0) {
-      if (progress < HAZARDS_END) {
+      if (progress < HAZARDS_END && this.hazards.length < MAX_HAZARDS) {
         const count = Math.random() < d * 0.5 ? 2 : 1;
         for (let i = 0; i < count; i++) {
           this.hazards.push(spawnHazard(this.w, this.h, this.scale, d, this.player.x));

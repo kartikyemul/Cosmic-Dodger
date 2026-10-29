@@ -4,6 +4,7 @@ import { WIN_SCORE, type Game } from "@/game/game";
 import { passedStages, STAGES } from "@/game/journey";
 import type { GameState } from "@/game/types";
 import { addRun, saveBest } from "@/services/storage";
+import { createCrash } from "./crash";
 import { createGameOver } from "./game-over";
 import { createHud } from "./hud";
 import { createPause } from "./pause";
@@ -16,7 +17,8 @@ export function mountUi(root: HTMLElement, game: Game): void {
   const over = createGameOver(game);
   const pause = createPause(game);
   const victory = createVictory(game);
-  root.append(hud.el, start.el, over.el, pause.el, victory.el);
+  const crash = createCrash();
+  root.append(hud.el, start.el, over.el, pause.el, victory.el, crash.el);
 
   let last: GameState = game.state;
   let passed = 0;
@@ -42,6 +44,7 @@ export function mountUi(root: HTMLElement, game: Game): void {
   };
 
   game.canStart = () => start.confirmTag();
+  game.onCrash = () => crash.setOpen(true);
   game.onScore = (score) => {
     hud.setScore(score);
     const count = passedStages(score / WIN_SCORE);

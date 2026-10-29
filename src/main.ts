@@ -1,7 +1,7 @@
 import "./style.css";
 import { initAmbientLight } from "@/components/ambient-light";
 import { mountUi } from "@/components/ui";
-import { Game } from "@/game/game";
+import { Game, WIN_SCORE } from "@/game/game";
 import { loadPalette } from "@/game/palette";
 import { loadBest, loadLift } from "@/services/storage";
 
@@ -12,7 +12,7 @@ if (!canvas || !uiRoot) throw new Error("index.html needs #stage and #ui");
 initAmbientLight();
 
 const game = new Game(canvas, loadPalette());
-game.best = loadBest();
+game.best = Math.min(loadBest(), WIN_SCORE);
 game.touchLift = loadLift();
 mountUi(uiRoot, game);
 
