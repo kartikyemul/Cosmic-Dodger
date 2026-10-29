@@ -2,6 +2,7 @@ import type { Game } from "@/game/game";
 import { loadTag, saveTag } from "@/services/storage";
 import { cleanTag, isValidTag, randomTag, TAG_MAX, TAG_MIN } from "@/services/tag";
 import { find, html, pad, showPanel, type Panel } from "./dom";
+import { createTouchSetting } from "./touch-setting";
 
 export interface StartScreen extends Panel {
   confirmTag: () => boolean;
@@ -30,6 +31,7 @@ export function createStartScreen(game: Game): StartScreen {
   const input = find<HTMLInputElement>(el, ".tag-input");
   const playButton = find<HTMLButtonElement>(el, ".btn-primary");
   const bestValue = find<HTMLElement>(el, ".best-value");
+  playButton.before(createTouchSetting(game).el);
 
   const saved = cleanTag(loadTag());
   input.value = isValidTag(saved) ? saved : randomTag();

@@ -66,3 +66,13 @@ export function addRun(run: Run): void {
   const runs = [...loadRuns(), run].sort((a, b) => b.score - a.score || a.time - b.time).slice(0, 5);
   write(RUNS_KEY, JSON.stringify(runs));
 }
+
+const LIFT_KEY = "cosmic-dodger:lift";
+export const LIFT_DEFAULT = 110;
+
+export function loadLift(): number {
+  const n = Number(read(LIFT_KEY));
+  return Number.isFinite(n) && n >= 30 && n <= 240 ? n : LIFT_DEFAULT;
+}
+
+export const saveLift = (px: number): void => write(LIFT_KEY, String(Math.round(px)));

@@ -38,6 +38,7 @@ export class Game {
   lockedUntil = 0;
   journeySeconds = JOURNEY_SECONDS;
   godMode = false;
+  touchLift = 110;
   readonly player: Body = makeBody(0, 0, CONFIG.playerRadius);
   hazards: Hazard[] = [];
   wells: Well[] = [];
@@ -81,6 +82,12 @@ export class Game {
     }
     window.addEventListener("keydown", this.onKey);
     document.addEventListener("visibilitychange", this.onVisibility);
+  }
+
+  /** Where the finger is, only while a finger is touching the screen. */
+  get touchPoint(): { x: number; y: number } | null {
+    if (!this.input.isDown || this.input.pointerType !== "touch" || this.input.usingKeyboard) return null;
+    return { x: this.input.x, y: this.input.y };
   }
 
   /** How far along the journey we are, 0 to 1. */
@@ -206,8 +213,10 @@ export class Game {
   private target(): { x: number; y: number } {
     if (this.input.usingKeyboard) return { x: this.keyX, y: this.keyY };
     if (!this.input.hasPointer) return { x: this.w / 2, y: this.h * 0.78 };
-    const lift = this.input.pointerType === "touch" ? CONFIG.touchLift * this.scale : 0;
     const m = this.player.r * 1.5;
+    // near the top edge the gap shrinks so the ship never ends up under the finger
+    const room = Math.max(0, this.input.y - m);
+    const lift = this.input.pointerType === "touch" ? Math.min(this.touchLift * this.scale, room) : 0;
     return {
       x: clamp(this.input.x, m, this.w - m),
       y: clamp(this.input.y - lift, m, this.h - m),

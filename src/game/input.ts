@@ -8,12 +8,15 @@ export class Input {
   hasPointer = false;
   pointerType = "mouse";
   usingKeyboard = false;
+  isDown = false;
   private pressed = false;
   private keys = new Set<string>();
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     canvas.addEventListener("pointermove", this.onMove, { passive: true });
     canvas.addEventListener("pointerdown", this.onDown);
+    canvas.addEventListener("pointerup", this.onUp);
+    canvas.addEventListener("pointercancel", this.onUp);
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
     window.addEventListener("keydown", this.onKey);
     window.addEventListener("keyup", this.onKeyUp);
@@ -55,7 +58,12 @@ export class Input {
   private onDown = (e: PointerEvent): void => {
     this.setPosition(e);
     this.pressed = true;
+    this.isDown = true;
     this.canvas.setPointerCapture(e.pointerId);
+  };
+
+  private onUp = (): void => {
+    this.isDown = false;
   };
 
   private onKey = (e: KeyboardEvent): void => {

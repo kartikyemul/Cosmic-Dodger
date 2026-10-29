@@ -32,6 +32,7 @@ export class Renderer {
     this.env.drawGround(ctx, g.w, g.h, now);
     for (const wl of g.wells) this.drawWell(wl, g, alpha, now);
     for (const hz of g.hazards) this.drawHazard(hz, g, alpha);
+    this.drawTouch(g, alpha);
     if (g.state !== "over") this.drawPlayer(g, alpha, now);
     this.drawParticles(g);
     ctx.restore();
@@ -183,6 +184,24 @@ export class Renderer {
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
     ctx.lineWidth = 2 * g.scale;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  private drawTouch(g: Game, alpha: number): void {
+    const t = g.touchPoint;
+    if (!t || g.state !== "playing") return;
+    const { ctx, c } = this;
+    const x = lerp(g.player.px, g.player.x, alpha);
+    const y = lerp(g.player.py, g.player.y, alpha);
+    ctx.save();
+    ctx.strokeStyle = c.text;
+    ctx.globalAlpha = 0.2;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 6]);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(t.x, t.y);
     ctx.stroke();
     ctx.restore();
   }

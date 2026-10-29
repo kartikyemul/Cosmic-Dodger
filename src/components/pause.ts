@@ -1,5 +1,6 @@
 import type { Game } from "@/game/game";
 import { find, html, showPanel, type Panel } from "./dom";
+import { createTouchSetting } from "./touch-setting";
 
 export function createPause(game: Game): Panel {
   const el = html<HTMLElement>(`
@@ -13,13 +14,18 @@ export function createPause(game: Game): Panel {
     </section>`);
 
   const button = find<HTMLButtonElement>(el, ".btn-primary");
+  const touch = createTouchSetting(game);
+  button.before(touch.el);
   button.addEventListener("click", () => game.resume());
 
   return {
     el,
     setOpen(open) {
       showPanel(el, open);
-      if (open) button.focus({ preventScroll: true });
+      if (open) {
+        touch.sync();
+        button.focus({ preventScroll: true });
+      }
     },
   };
 }
