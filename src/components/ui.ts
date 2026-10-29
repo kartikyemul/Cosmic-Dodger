@@ -48,7 +48,11 @@ export function mountUi(root: HTMLElement, game: Game): void {
   game.onScore = (score) => {
     hud.setScore(score);
     const count = passedStages(score / WIN_SCORE);
-    if (count > passed && count < STAGES.length) audio.play("planet");
+    if (count > passed && count < STAGES.length) {
+      audio.play("planet");
+      const stage = STAGES[count - 1];
+      if (stage) hud.announce(`Passing ${stage.name}`);
+    }
     passed = count;
   };
   game.onStateChange = show;

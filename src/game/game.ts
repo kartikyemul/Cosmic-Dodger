@@ -20,6 +20,12 @@ const makeBody = (x: number, y: number, r: number): Body => ({
   x, y, px: x, py: y, vx: 0, vy: 0, r,
 });
 
+function keepIf<T>(items: T[], keep: (item: T) => boolean): void {
+  let n = 0;
+  for (const item of items) if (keep(item)) items[n++] = item;
+  items.length = n;
+}
+
 const snap = (b: Body): void => {
   b.px = b.x;
   b.py = b.y;
@@ -65,6 +71,10 @@ export class Game {
   private keyY = 0;
   private scoreTimer = 0;
   private failures = 0;
+  private dprCap: number = CONFIG.maxDpr;
+  private lastDpr = 1;
+  private frameMs = 16.7;
+  private slowMs = 0;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -106,7 +116,8 @@ export class Game {
 
   resize(w: number, h: number, dpr: number): void {
     if (w < 1 || h < 1) return;
-    const d = Math.min(dpr, CONFIG.maxDpr);
+    this.lastDpr = dpr;
+    const d = Math.min(dpr, this.dprCap);
     this.canvas.width = Math.round(w * d);
     this.canvas.height = Math.round(h * d);
     this.ctx.setTransform(d, 0, 0, d, 0, 0);
@@ -158,6 +169,7 @@ export class Game {
   private frame = (now: number): void => {
     try {
       const dt = Math.min((now - this.last) / 1000, CONFIG.maxFrameDt);
+      this.watchSpeed(now - this.last);
       this.last = now;
 
       if (this.input.consumePress()) this.start();
@@ -181,6 +193,19 @@ export class Game {
     }
     requestAnimationFrame(this.frame);
   };
+
+  private watchSpeed(ms: number): void {
+    this.frameMs += (Math.min(ms, 100) - this.frameMs) * 0.05;
+    if (this.state !== "playing" || this.frameMs < 24 || this.dprCap <= 1) {
+      this.slowMs = 0;
+      return;
+    }
+    this.slowMs += ms;
+    if (this.slowMs < 2000) return;
+    this.slowMs = 0;
+    this.dprCap = Math.max(1, this.dprCap - 0.5);
+    this.resize(this.w, this.h, this.lastDpr);
+  }
 
   private step(dt: number): void {
     snap(this.player);
@@ -334,10 +359,8 @@ export class Game {
     }
     for (const wl of this.wells) wl.y += wl.vy * dt;
 
-    this.hazards = this.hazards.filter(
-      (hz) => hz.y < this.h + hz.r * 2 && hz.x > -hz.r * 4 && hz.x < this.w + hz.r * 4,
-    );
-    this.wells = this.wells.filter((wl) => wl.y < this.h + wl.pullR);
+    keepIf(this.hazards, (hz) => hz.y < this.h + hz.r * 2 && hz.x > -hz.r * 4 && hz.x < this.w + hz.r * 4);
+    keepIf(this.wells, (wl) => wl.y < this.h + wl.pullR);
   }
 
   private checkCollisions(): void {
@@ -383,6 +406,7 @@ export class Game {
 
   private die(): void {
     const p = this.player;
+    navigator.vibrate?.(40);
     this.state = "over";
     this.settleBest();
     this.lockedUntil = performance.now() + RESTART_DELAY_MS;
@@ -465,7 +489,7 @@ export class Game {
       q.vy *= damp;
       q.life -= dt;
     }
-    this.particles = this.particles.filter((q) => q.life > 0);
+    keepIf(this.particles, (q) => q.life > 0);
   }
 
   private seedStars(): void {

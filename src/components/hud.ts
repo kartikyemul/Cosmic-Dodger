@@ -7,6 +7,7 @@ export interface Hud {
   el: HTMLElement;
   setOpen: (open: boolean) => void;
   setScore: (score: number) => void;
+  announce: (text: string) => void;
 }
 
 export function createHud(game: Game): Hud {
@@ -23,6 +24,7 @@ export function createHud(game: Game): Hud {
       <div class="hud-center">
         <div class="glass pill score numeric">000000</div>
         <div class="track"><div class="track-fill"></div></div>
+        <div class="toast" aria-live="polite"></div>
         <div class="best-line">Next <span class="next-name">Neptune</span> · Best <span class="numeric best-value">000000</span></div>
       </div>
       <button class="icon-btn glass" type="button" aria-label="Pause">
@@ -37,6 +39,7 @@ export function createHud(game: Game): Hud {
   const bestEl = find<HTMLElement>(el, ".best-value");
   const fill = find<HTMLElement>(el, ".track-fill");
   const nextEl = find<HTMLElement>(el, ".next-name");
+  const toast = find<HTMLElement>(el, ".toast");
   find<HTMLButtonElement>(el, ".icon-btn:not(.mute)").addEventListener("click", () => game.pause());
 
   const mute = find<HTMLButtonElement>(el, ".mute");
@@ -55,9 +58,17 @@ export function createHud(game: Game): Hud {
     nextEl.textContent = nextStage(score / WIN_SCORE).name;
   };
 
+  const announce = (text: string): void => {
+    toast.textContent = text;
+    toast.classList.remove("show");
+    void toast.offsetWidth;
+    toast.classList.add("show");
+  };
+
   return {
     el,
     setScore,
+    announce,
     setOpen(open) {
       showPanel(el, open);
       if (open) setScore(game.score);

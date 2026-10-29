@@ -350,3 +350,32 @@
   background: rgb(255 255 255 / 0.14);
   color: var(--color-text-primary);
 }
+
+/* planet name under the score */
+.hud-center {
+  position: relative;
+}
+.toast {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-top: 0.7rem;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+  text-shadow: 0 1px 8px rgb(0 0 0 / 0.6);
+  opacity: 0;
+  pointer-events: none;
+}
+.toast.show {
+  animation: toast 2.6s var(--ease-calm) forwards;
+}
+@keyframes toast {
+  0% { opacity: 0; transform: translate(-50%, -6px); }
+  15% { opacity: 1; transform: translate(-50%, 0); }
+  80% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, 0); }
+}
