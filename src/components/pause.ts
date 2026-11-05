@@ -1,5 +1,5 @@
 import type { Game } from "@/game/game";
-import { find, html, showPanel, type Panel } from "./dom";
+import { find, hangarButton, html, showPanel, type Panel } from "./dom";
 import { createTouchSetting } from "./touch-setting";
 
 export function createPause(game: Game): Panel {
@@ -16,6 +16,7 @@ export function createPause(game: Game): Panel {
   const button = find<HTMLButtonElement>(el, ".btn-primary");
   const touch = createTouchSetting(game);
   button.before(touch.el);
+  button.after(hangarButton());
   button.addEventListener("click", () => game.resume());
 
   return {

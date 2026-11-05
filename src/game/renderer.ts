@@ -1,11 +1,15 @@
+import { Decor } from "./decor";
 import { Environment } from "./environment";
 import type { Game } from "./game";
 import { clamp, lerp, rand } from "./math";
 import { withAlpha, type Palette } from "./palette";
+import type { Theme } from "./themes";
 import type { Hazard, Well } from "./types";
 
 export class Renderer {
   private readonly env: Environment;
+  private readonly decor = new Decor();
+  private lastNow = 0;
   private haze: CanvasGradient | null = null;
   private hazeW = 0;
   private hazeH = 0;
@@ -23,6 +27,9 @@ export class Renderer {
     ctx.globalAlpha = 1;
 
     this.env.update(g.progress, now, g.w, g.h);
+    this.decor.resize(g.w, g.h);
+    this.decor.update(Math.min((now - this.lastNow) / 1000, 0.1), now);
+    this.lastNow = now;
     this.env.drawSky(ctx, g.w, g.h);
     this.drawHaze(g);
 
@@ -30,12 +37,19 @@ export class Renderer {
     if (g.shake > 0.2) ctx.translate(rand(-g.shake, g.shake), rand(-g.shake, g.shake));
     this.drawStars(g);
     this.env.drawGround(ctx, g.w, g.h, now);
+    this.decor.draw(ctx, now);
     for (const wl of g.wells) this.drawWell(wl, g, alpha, now);
     for (const hz of g.hazards) this.drawHazard(hz, g, alpha);
     this.drawTouch(g, alpha);
     if (g.state !== "over") this.drawPlayer(g, alpha, now);
     this.drawParticles(g);
     ctx.restore();
+  }
+
+  setTheme(theme: Theme, reduceMotion: boolean): void {
+    this.decor.setTheme(theme, reduceMotion);
+    this.env.tint = theme.tint;
+    this.haze = null;
   }
 
   // violet glow at the bottom of the screen, only in deep space

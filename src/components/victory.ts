@@ -1,5 +1,6 @@
 import { WIN_CARD_DELAY_MS, type Game } from "@/game/game";
-import { find, formatTime, html, pad, showPanel, type Panel } from "./dom";
+import { unlockNotes } from "@/game/ships";
+import { find, formatTime, hangarButton, html, pad, showPanel, type Panel } from "./dom";
 
 export function createVictory(game: Game): Panel {
   const el = html<HTMLElement>(`
@@ -9,6 +10,7 @@ export function createVictory(game: Game): Panel {
         <h2 class="item title">You made it home</h2>
         <p class="item final-score numeric">100000</p>
         <p class="item badge" data-show="false">New best</p>
+        <p class="item unlock" data-show="false"></p>
         <p class="item hint">Flight time <span class="numeric time">0:00</span> · Best <span class="numeric best-value">000000</span></p>
         <button class="item btn btn-primary" type="button">Fly again</button>
       </div>
@@ -18,7 +20,9 @@ export function createVictory(game: Game): Panel {
   const timeEl = find<HTMLElement>(el, ".time");
   const bestEl = find<HTMLElement>(el, ".best-value");
   const badge = find<HTMLElement>(el, ".badge");
+  const unlockEl = find<HTMLElement>(el, ".unlock");
   const button = find<HTMLButtonElement>(el, ".btn-primary");
+  button.after(hangarButton());
   let timer = 0;
 
   button.addEventListener("click", () => game.start());
@@ -35,6 +39,8 @@ export function createVictory(game: Game): Panel {
       timeEl.textContent = formatTime(game.elapsed);
       bestEl.textContent = pad(game.best);
       badge.dataset.show = String(game.newBest);
+      unlockEl.textContent = unlockNotes.text;
+      unlockEl.dataset.show = String(unlockNotes.text !== "");
       button.disabled = true;
       // give the arrival a few quiet seconds before the card appears
       timer = window.setTimeout(() => {

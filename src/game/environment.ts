@@ -114,6 +114,7 @@ export class Environment {
   starAlpha = 1;
   daylight = 0;
   hazeAlpha = 1;
+  tint: RGB | null = null;
 
   private lastNow = 0;
   private w = 0;
@@ -157,6 +158,11 @@ export class Environment {
     g.addColorStop(1, rgb(bottom));
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
+
+    if (this.tint) {
+      ctx.fillStyle = `rgba(${this.tint[0]}, ${this.tint[1]}, ${this.tint[2]}, ${0.12 * (1 - this.daylight)})`;
+      ctx.fillRect(0, 0, w, h);
+    }
 
     // the sun gets bigger as you fly in towards Mercury and then Earth
     const sun = smoothstep(0.62, 0.9, this.shown);

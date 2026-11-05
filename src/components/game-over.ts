@@ -1,5 +1,6 @@
 import { RESTART_DELAY_MS, type Game } from "@/game/game";
-import { find, html, pad, showPanel, type Panel } from "./dom";
+import { unlockNotes } from "@/game/ships";
+import { find, hangarButton, html, pad, showPanel, type Panel } from "./dom";
 import { renderRuns } from "./runs";
 
 export function createGameOver(game: Game): Panel {
@@ -9,6 +10,7 @@ export function createGameOver(game: Game): Panel {
         <p class="item eyebrow">Run over</p>
         <p class="item final-score numeric">000000</p>
         <p class="item badge" data-show="false">New best</p>
+        <p class="item unlock" data-show="false"></p>
         <p class="item hint">Best <span class="numeric best-value">000000</span></p>
         <ol class="item runs" data-empty="true" aria-label="Your best runs"></ol>
         <button class="item btn btn-primary" type="button">Play again</button>
@@ -20,7 +22,9 @@ export function createGameOver(game: Game): Panel {
   const bestEl = find<HTMLElement>(el, ".best-value");
   const badge = find<HTMLElement>(el, ".badge");
   const runsEl = find<HTMLElement>(el, ".runs");
+  const unlockEl = find<HTMLElement>(el, ".unlock");
   const button = find<HTMLButtonElement>(el, ".btn-primary");
+  button.after(hangarButton());
   let timer = 0;
 
   button.addEventListener("click", () => game.start());
@@ -35,6 +39,8 @@ export function createGameOver(game: Game): Panel {
       scoreEl.textContent = pad(game.score);
       bestEl.textContent = pad(game.best);
       badge.dataset.show = String(game.newBest);
+      unlockEl.textContent = unlockNotes.text;
+      unlockEl.dataset.show = String(unlockNotes.text !== "");
       renderRuns(runsEl);
       button.disabled = true;
       timer = window.setTimeout(() => {

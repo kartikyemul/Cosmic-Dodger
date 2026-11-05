@@ -2,10 +2,12 @@ import "./ui.css";
 import { audio } from "@/game/audio";
 import { WIN_SCORE, type Game } from "@/game/game";
 import { passedStages, STAGES } from "@/game/journey";
+import { unlockedNames, unlockNotes } from "@/game/ships";
 import type { GameState } from "@/game/types";
-import { addRun, saveBest } from "@/services/storage";
+import { addRun, loadFar, saveBest, saveFar } from "@/services/storage";
 import { createCrash } from "./crash";
 import { createGameOver } from "./game-over";
+import { createHangar } from "./hangar";
 import { createHud } from "./hud";
 import { createPause } from "./pause";
 import { createStartScreen } from "./start-screen";
@@ -17,8 +19,9 @@ export function mountUi(root: HTMLElement, game: Game): void {
   const over = createGameOver(game);
   const pause = createPause(game);
   const victory = createVictory(game);
+  const hangar = createHangar(game);
   const crash = createCrash();
-  root.append(hud.el, start.el, over.el, pause.el, victory.el, crash.el);
+  root.append(hud.el, start.el, over.el, pause.el, victory.el, hangar.el, crash.el);
 
   let last: GameState = game.state;
   let passed = 0;
@@ -27,6 +30,12 @@ export function mountUi(root: HTMLElement, game: Game): void {
     if (state === "over" || state === "won") {
       if (game.score > 0) addRun({ tag: start.getTag(), score: game.score, time: game.elapsed });
       if (game.newBest) saveBest(game.best);
+
+      const before = loadFar();
+      const reached = passedStages(game.score / WIN_SCORE);
+      const names = unlockedNames(before, reached);
+      unlockNotes.text = names.length > 0 ? `Unlocked: ${names.join(", ")}` : "";
+      if (reached > before) saveFar(reached);
     }
     if (state === "playing" && last !== "paused") {
       audio.play("start");
@@ -43,7 +52,7 @@ export function mountUi(root: HTMLElement, game: Game): void {
     victory.setOpen(state === "won");
   };
 
-  game.canStart = () => start.confirmTag();
+  game.canStart = () => !hangar.isOpen() && start.confirmTag();
   game.onCrash = () => crash.setOpen(true);
   game.onScore = (score) => {
     hud.setScore(score);

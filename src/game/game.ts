@@ -1,9 +1,10 @@
 import { CONFIG } from "./config";
 import { Input } from "./input";
 import { clamp, lerp, rand } from "./math";
-import type { Palette } from "./palette";
+import { loadPalette, type Palette } from "./palette";
 import { Renderer } from "./renderer";
 import { colorById, shipById, type ShipShape } from "./ships";
+import { applyThemeColors, DEFAULT_THEME, type Theme } from "./themes";
 import { difficulty, hazardInterval, spawnHazard, spawnWell } from "./spawner";
 import type { Body, GameState, Hazard, Particle, Star, Well } from "./types";
 
@@ -49,6 +50,7 @@ export class Game {
   touchLift = 110;
   ship: ShipShape = shipById("dart");
   shipColor = "";
+  theme: Theme = DEFAULT_THEME;
   readonly player: Body = makeBody(0, 0, CONFIG.playerRadius);
   hazards: Hazard[] = [];
   wells: Well[] = [];
@@ -64,7 +66,7 @@ export class Game {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly input: Input;
   private readonly renderer: Renderer;
-  private readonly reduceMotion: boolean;
+  readonly reduceMotion: boolean;
   private acc = 0;
   private last = 0;
   private spawnTimer = 0.6;
@@ -81,7 +83,7 @@ export class Game {
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
-    palette: Palette,
+    readonly palette: Palette,
   ) {
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) throw new Error("This browser does not support canvas 2D.");
@@ -131,6 +133,14 @@ export class Game {
     this.seedStars();
     if (this.state === "ready") this.placePlayer();
     else this.keepPlayerInside();
+  }
+
+  /** Changes the festive look: UI colours, sky wash and floating decorations. */
+  setTheme(theme: Theme): void {
+    this.theme = theme;
+    applyThemeColors(theme);
+    Object.assign(this.palette, loadPalette());
+    this.renderer.setTheme(theme, this.reduceMotion);
   }
 
   setShip(id: string): void {

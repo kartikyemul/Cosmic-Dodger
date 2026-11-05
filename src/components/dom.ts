@@ -28,3 +28,12 @@ export function formatTime(seconds: number): string {
   const s = String(total % 60).padStart(2, "0");
   return `${m}:${s}`;
 }
+
+export function hangarButton(): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "item btn btn-ghost";
+  button.textContent = "Hangar";
+  button.addEventListener("click", () => window.dispatchEvent(new Event("open-hangar")));
+  return button;
+}
