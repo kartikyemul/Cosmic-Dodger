@@ -17,3 +17,9 @@ Sound is made with the Web Audio API, so there are no asset files.
 Run the logic tests with `npm test`.
 
 Testing shortcut in dev: `?journey=40&god` makes the trip 40 seconds long and stops you dying.
+
+## Customising
+
+Open the Hangar from the start, pause or result screens to pick a ship, a colour and a theme.
+Ships and colours unlock by reaching planets. Festive themes switch on by date (or pick one yourself).
+Moving festival dates live in `src/game/themes.ts`, add next year's before they pass.
