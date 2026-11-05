@@ -150,14 +150,15 @@ export class Renderer {
     const x = lerp(p.px, p.x, alpha);
     const y = lerp(p.py, p.y, alpha);
     const r = p.r * (g.state === "ready" ? 1 + 0.05 * Math.sin(now / 450) : 1);
+    const tint = g.shipColor || c.cyan;
 
     ctx.save();
     ctx.translate(x, y);
 
     ctx.globalCompositeOperation = "lighter";
     const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 4.2);
-    glow.addColorStop(0, withAlpha(c.cyan, 0.35 * (1 - 0.5 * day)));
-    glow.addColorStop(1, withAlpha(c.cyan, 0));
+    glow.addColorStop(0, withAlpha(tint, 0.35 * (1 - 0.5 * day)));
+    glow.addColorStop(1, withAlpha(tint, 0));
     ctx.fillStyle = glow;
     ctx.beginPath();
     ctx.arc(0, 0, r * 4.2, 0, Math.PI * 2);
@@ -165,10 +166,10 @@ export class Renderer {
 
     ctx.rotate(clamp(p.vx / 1400, -0.45, 0.45));
     ctx.beginPath();
-    ctx.moveTo(0, -r * 1.3);
-    ctx.lineTo(r * 0.95, r * 0.95);
-    ctx.lineTo(0, r * 0.45);
-    ctx.lineTo(-r * 0.95, r * 0.95);
+    g.ship.points.forEach(([sx, sy], i) => {
+      if (i === 0) ctx.moveTo(sx * r, sy * r);
+      else ctx.lineTo(sx * r, sy * r);
+    });
     ctx.closePath();
 
     ctx.globalCompositeOperation = "source-over";
@@ -176,7 +177,7 @@ export class Renderer {
     ctx.fill();
 
     ctx.lineJoin = "round";
-    ctx.strokeStyle = c.cyan;
+    ctx.strokeStyle = tint;
     ctx.globalCompositeOperation = "lighter";
     ctx.globalAlpha = 0.22;
     ctx.lineWidth = 7 * g.scale;
@@ -212,7 +213,7 @@ export class Renderer {
     ctx.globalCompositeOperation = "lighter";
     for (const q of g.particles) {
       ctx.globalAlpha = clamp(q.life / q.maxLife, 0, 1);
-      ctx.fillStyle = c[q.tint];
+      ctx.fillStyle = q.tint === "ship" ? g.shipColor || c.cyan : c[q.tint];
       ctx.fillRect(q.x - q.size / 2, q.y - q.size / 2, q.size, q.size);
     }
     ctx.restore();

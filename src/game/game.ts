@@ -3,6 +3,7 @@ import { Input } from "./input";
 import { clamp, lerp, rand } from "./math";
 import type { Palette } from "./palette";
 import { Renderer } from "./renderer";
+import { colorById, shipById, type ShipShape } from "./ships";
 import { difficulty, hazardInterval, spawnHazard, spawnWell } from "./spawner";
 import type { Body, GameState, Hazard, Particle, Star, Well } from "./types";
 
@@ -46,6 +47,8 @@ export class Game {
   journeySeconds = JOURNEY_SECONDS;
   godMode = false;
   touchLift = 110;
+  ship: ShipShape = shipById("dart");
+  shipColor = "";
   readonly player: Body = makeBody(0, 0, CONFIG.playerRadius);
   hazards: Hazard[] = [];
   wells: Well[] = [];
@@ -128,6 +131,15 @@ export class Game {
     this.seedStars();
     if (this.state === "ready") this.placePlayer();
     else this.keepPlayerInside();
+  }
+
+  setShip(id: string): void {
+    this.ship = shipById(id);
+  }
+
+  /** Empty colour means "use the theme accent". */
+  setShipColor(id: string): void {
+    this.shipColor = colorById(id).hex;
   }
 
   /** Starts a run from the start screen or the game over screen. */
@@ -424,7 +436,7 @@ export class Game {
         life: 0,
         maxLife: rand(0.4, 0.95),
         size: rand(1.5, 3.5) * this.scale,
-        tint: i % 3 === 0 ? "text" : i % 3 === 1 ? "cyan" : "violet",
+        tint: i % 3 === 0 ? "text" : i % 3 === 1 ? "ship" : "violet",
       });
     }
     this.onStateChange?.(this.state);
@@ -475,7 +487,7 @@ export class Game {
         life: 0.34,
         maxLife: 0.34,
         size: rand(1.5, 3) * this.scale,
-        tint: "cyan",
+        tint: "ship",
       });
     }
   }

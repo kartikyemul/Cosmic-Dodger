@@ -76,3 +76,41 @@ export function loadLift(): number {
 }
 
 export const saveLift = (px: number): void => write(LIFT_KEY, String(Math.round(px)));
+
+const LOOK_KEY = "cosmic-dodger:look";
+const FAR_KEY = "cosmic-dodger:v2:far";
+
+export interface Look {
+  ship: string;
+  color: string;
+  theme: string;
+}
+
+export const DEFAULT_LOOK: Look = { ship: "dart", color: "theme", theme: "auto" };
+
+export function loadLook(): Look {
+  try {
+    const data: unknown = JSON.parse(read(LOOK_KEY) ?? "null");
+    if (typeof data === "object" && data !== null) {
+      const d = data as Record<string, unknown>;
+      return {
+        ship: typeof d.ship === "string" ? d.ship : DEFAULT_LOOK.ship,
+        color: typeof d.color === "string" ? d.color : DEFAULT_LOOK.color,
+        theme: typeof d.theme === "string" ? d.theme : DEFAULT_LOOK.theme,
+      };
+    }
+  } catch {
+    // bad data, use the defaults
+  }
+  return { ...DEFAULT_LOOK };
+}
+
+export const saveLook = (look: Look): void => write(LOOK_KEY, JSON.stringify(look));
+
+/** The furthest planet you have ever reached, 0 to 8. */
+export function loadFar(): number {
+  const n = Math.floor(Number(read(FAR_KEY)));
+  return Number.isFinite(n) ? Math.min(8, Math.max(0, n)) : 0;
+}
+
+export const saveFar = (n: number): void => write(FAR_KEY, String(Math.min(8, Math.max(0, Math.floor(n)))));

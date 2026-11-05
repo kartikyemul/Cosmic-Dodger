@@ -21,7 +21,7 @@ export interface Well extends Body {
   pullR: number;
 }
 
-export type Tint = "cyan" | "violet" | "magenta" | "lime" | "text";
+export type Tint = "cyan" | "violet" | "magenta" | "lime" | "text" | "ship";
 
 export interface Particle {
   x: number;
