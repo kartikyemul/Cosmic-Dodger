@@ -1,5 +1,6 @@
 import type { Game } from "@/game/game";
 import { COLORS, SHIPS, colorById, isUnlocked, shipById, unlockHint } from "@/game/ships";
+import { THEMES, pickTheme } from "@/game/themes";
 import { loadFar, loadLook, saveLook } from "@/services/storage";
 import { find, html, showPanel, type Panel } from "./dom";
 
@@ -29,6 +30,10 @@ export function createHangar(game: Game): Hangar {
           <span class="field-label">Colour</span>
           <div class="choices" data-row="color"></div>
         </div>
+        <label class="item group">
+          <span class="field-label">Theme</span>
+          <select class="theme-select" aria-label="Theme"></select>
+        </label>
         <p class="item hint hangar-hint" aria-live="polite"></p>
         <button class="item btn btn-primary" type="button">Done</button>
       </div>
@@ -38,6 +43,7 @@ export function createHangar(game: Game): Hangar {
   const shipRow = find<HTMLElement>(el, '[data-row="ship"]');
   const colorRow = find<HTMLElement>(el, '[data-row="color"]');
   const hint = find<HTMLElement>(el, ".hangar-hint");
+  const themeSelect = find<HTMLSelectElement>(el, ".theme-select");
   const done = find<HTMLButtonElement>(el, ".btn-primary");
 
   let look = loadLook();
@@ -58,6 +64,26 @@ export function createHangar(game: Game): Hangar {
       return `<button class="choice swatch" type="button" data-color="${c.id}" aria-pressed="${c.id === look.color}" data-locked="${locked}" aria-label="${c.name}${locked ? ", locked" : ""}" title="${c.name}" style="--swatch:${c.hex || game.palette.cyan}"><span></span>${locked ? LOCK : ""}</button>`;
     }).join("");
   };
+
+  const renderThemes = (): void => {
+    const today = pickTheme("auto", new Date());
+    const options = [
+      `<option value="auto">Auto${today.id === "default" ? "" : ` · ${today.name}`}</option>`,
+      '<option value="off">Off</option>',
+      ...THEMES.filter((t) => t.id !== "default").map((t) => `<option value="${t.id}">${t.name}</option>`),
+    ];
+    themeSelect.innerHTML = options.join("");
+    const known = look.theme === "auto" || look.theme === "off" || THEMES.some((t) => t.id === look.theme);
+    themeSelect.value = known ? look.theme : "auto";
+  };
+
+  themeSelect.addEventListener("change", () => {
+    look = { ...look, theme: themeSelect.value };
+    saveLook(look);
+    game.setTheme(pickTheme(look.theme, new Date()));
+    window.dispatchEvent(new Event("look-changed"));
+    render();
+  });
 
   el.addEventListener("click", (e) => {
     const target = e.target instanceof Element ? e.target : null;
@@ -96,6 +122,7 @@ export function createHangar(game: Game): Hangar {
     look = loadLook();
     hint.textContent = "";
     render();
+    renderThemes();
     done.focus({ preventScroll: true });
   };
 

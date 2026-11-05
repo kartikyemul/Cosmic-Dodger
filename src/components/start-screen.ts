@@ -34,6 +34,13 @@ export function createStartScreen(game: Game): StartScreen {
   playButton.before(createTouchSetting(game).el);
   playButton.after(hangarButton());
 
+  const eyebrow = find<HTMLElement>(el, ".eyebrow");
+  const greet = (): void => {
+    eyebrow.textContent = game.theme.greeting;
+  };
+  window.addEventListener("look-changed", greet);
+  greet();
+
   const saved = cleanTag(loadTag());
   input.value = isValidTag(saved) ? saved : randomTag();
   bestValue.textContent = pad(game.best);
