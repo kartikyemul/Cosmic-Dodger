@@ -41,4 +41,6 @@ export interface Star {
   z: number;
 }
 
+export type GameMode = "classic" | "daily";
+
 export type GameState = "ready" | "playing" | "paused" | "won" | "over";

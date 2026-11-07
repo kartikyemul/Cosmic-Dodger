@@ -1,12 +1,13 @@
 import { CONFIG } from "./config";
+import { dayKey, mulberry32, seedFromKey } from "./daily";
 import { Input } from "./input";
-import { clamp, lerp, rand } from "./math";
+import { between, clamp, lerp, rand } from "./math";
 import { loadPalette, type Palette } from "./palette";
 import { Renderer } from "./renderer";
 import { colorById, shipById, type ShipShape } from "./ships";
 import { applyThemeColors, DEFAULT_THEME, type Theme } from "./themes";
 import { difficulty, hazardInterval, spawnHazard, spawnWell } from "./spawner";
-import type { Body, GameState, Hazard, Particle, Star, Well } from "./types";
+import type { Body, GameMode, GameState, Hazard, Particle, Star, Well } from "./types";
 
 export const RESTART_DELAY_MS = 700;
 const RESUME_GRACE = 0.8;
@@ -48,6 +49,7 @@ export class Game {
   journeySeconds = JOURNEY_SECONDS;
   godMode = false;
   touchLift = 110;
+  mode: GameMode = "classic";
   ship: ShipShape = shipById("dart");
   shipColor = "";
   theme: Theme = DEFAULT_THEME;
@@ -75,6 +77,7 @@ export class Game {
   private keyX = 0;
   private keyY = 0;
   private scoreTimer = 0;
+  private rng: () => number = Math.random;
   private failures = 0;
   private dprCap: number = CONFIG.maxDpr;
   private lastDpr = 1;
@@ -153,12 +156,13 @@ export class Game {
   }
 
   /** Starts a run from the start screen or the game over screen. */
-  start(): void {
+  start(mode: GameMode = this.mode): void {
     const canRestart =
       this.state === "ready" ||
       ((this.state === "over" || this.state === "won") && performance.now() >= this.lockedUntil);
     if (!canRestart) return;
     if (this.canStart && !this.canStart()) return;
+    this.mode = mode;
     this.startRun();
   }
 
@@ -358,18 +362,18 @@ export class Game {
     this.spawnTimer -= dt;
     while (this.spawnTimer <= 0) {
       if (progress < HAZARDS_END && this.hazards.length < MAX_HAZARDS) {
-        const count = Math.random() < d * 0.5 ? 2 : 1;
+        const count = this.rng() < d * 0.5 ? 2 : 1;
         for (let i = 0; i < count; i++) {
-          this.hazards.push(spawnHazard(this.w, this.h, this.scale, d, this.player.x));
+          this.hazards.push(spawnHazard(this.w, this.h, this.scale, d, this.player.x, this.rng));
         }
       }
-      this.spawnTimer += hazardInterval(d) * rand(0.7, 1.3);
+      this.spawnTimer += hazardInterval(d) * between(this.rng, 0.7, 1.3);
     }
 
     this.wellTimer -= dt;
     if (this.wellTimer <= 0) {
-      if (progress < WELLS_END) this.wells.push(spawnWell(this.w, this.scale));
-      this.wellTimer = lerp(CONFIG.wellIntervalStart, CONFIG.wellIntervalEnd, d) * rand(0.8, 1.2);
+      if (progress < WELLS_END) this.wells.push(spawnWell(this.w, this.scale, this.rng));
+      this.wellTimer = lerp(CONFIG.wellIntervalStart, CONFIG.wellIntervalEnd, d) * between(this.rng, 0.8, 1.2);
     }
   }
 
@@ -406,6 +410,8 @@ export class Game {
   // state changes
 
   private startRun(): void {
+    // the Daily Run uses today's date as the seed, so everyone gets the same rock schedule
+    this.rng = this.mode === "daily" ? mulberry32(seedFromKey(dayKey())) : Math.random;
     this.hazards = [];
     this.wells = [];
     this.particles = [];

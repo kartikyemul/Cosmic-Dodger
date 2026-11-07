@@ -9,3 +9,5 @@ export const smoothstep = (a: number, b: number, v: number): number => {
   const t = clamp((v - a) / (b - a), 0, 1);
   return t * t * (3 - 2 * t);
 };
+
+export const between = (rng: () => number, min: number, max: number): number => min + rng() * (max - min);

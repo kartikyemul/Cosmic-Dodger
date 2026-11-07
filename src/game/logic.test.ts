@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { cleanTag, isValidTag } from "../services/tag";
 import { nextStage, passedStages, STAGES } from "./journey";
 import { smoothstep } from "./math";
-import { difficulty } from "./spawner";
+import { currentStreak, dayKey, EMPTY_DAILY, mulberry32, recordDaily, seedFromKey, yesterdayKey } from "./daily";
+import { difficulty, spawnHazard } from "./spawner";
 import { COLORS, SHIPS, shipById, unlockedNames, unlockHint } from "./ships";
 import { autoThemeId, pickTheme, THEMES } from "./themes";
 
@@ -109,5 +110,53 @@ describe("themes", () => {
 
   it("has unique ids", () => {
     expect(new Set(THEMES.map((t) => t.id)).size).toBe(THEMES.length);
+  });
+});
+
+describe("daily run", () => {
+  it("gives the same numbers for the same seed", () => {
+    const a = mulberry32(seedFromKey("2026-11-08"));
+    const b = mulberry32(seedFromKey("2026-11-08"));
+    for (let i = 0; i < 20; i++) {
+      const v = a();
+      expect(v).toBe(b());
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThan(1);
+    }
+    expect(seedFromKey("2026-11-08") === seedFromKey("2026-11-09")).toBe(false);
+  });
+
+  it("spawns identical rocks from the same seed", () => {
+    const one = spawnHazard(400, 800, 1, 0.5, 200, mulberry32(5));
+    const two = spawnHazard(400, 800, 1, 0.5, 200, mulberry32(5));
+    expect(JSON.stringify(one)).toBe(JSON.stringify(two));
+  });
+
+  it("builds day keys across month and year ends", () => {
+    expect(dayKey(new Date(2026, 10, 8))).toBe("2026-11-08");
+    expect(yesterdayKey(new Date(2026, 2, 1))).toBe("2026-02-28");
+    expect(yesterdayKey(new Date(2027, 0, 1))).toBe("2026-12-31");
+  });
+
+  it("tracks best, tries and streak", () => {
+    const first = recordDaily(EMPTY_DAILY, "2026-11-08", "2026-11-07", 1000, 50);
+    expect(first.best).toBe(1000);
+    expect(first.streak).toBe(1);
+    const again = recordDaily(first, "2026-11-08", "2026-11-07", 800, 40);
+    expect(again.best).toBe(1000);
+    expect(again.tries).toBe(2);
+    expect(again.streak).toBe(1);
+    const next = recordDaily(again, "2026-11-09", "2026-11-08", 500, 30);
+    expect(next.streak).toBe(2);
+    expect(next.best).toBe(500);
+    expect(next.tries).toBe(1);
+    const skipped = recordDaily(next, "2026-11-12", "2026-11-11", 700, 35);
+    expect(skipped.streak).toBe(1);
+  });
+
+  it("drops the shown streak after a missed day", () => {
+    const state = recordDaily(EMPTY_DAILY, "2026-11-08", "2026-11-07", 100, 10);
+    expect(currentStreak(state, "2026-11-09", "2026-11-08")).toBe(1);
+    expect(currentStreak(state, "2026-11-10", "2026-11-09")).toBe(0);
   });
 });

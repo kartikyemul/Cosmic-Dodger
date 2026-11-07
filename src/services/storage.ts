@@ -1,3 +1,5 @@
+import { EMPTY_DAILY, type DailyState } from "@/game/daily";
+
 const BEST_KEY = "cosmic-dodger:v2:best";
 const TAG_KEY = "cosmic-dodger:tag";
 
@@ -114,3 +116,25 @@ export function loadFar(): number {
 }
 
 export const saveFar = (n: number): void => write(FAR_KEY, String(Math.min(8, Math.max(0, Math.floor(n)))));
+
+const DAILY_KEY = "cosmic-dodger:v2:daily";
+
+export function loadDaily(): DailyState {
+  try {
+    const data: unknown = JSON.parse(read(DAILY_KEY) ?? "null");
+    if (typeof data === "object" && data !== null) {
+      const d = data as Record<string, unknown>;
+      const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0);
+      const str = (v: unknown): string => (typeof v === "string" ? v : "");
+      return {
+        day: str(d.day), best: num(d.best), time: num(d.time),
+        tries: num(d.tries), streak: num(d.streak), last: str(d.last),
+      };
+    }
+  } catch {
+    // bad data, start fresh
+  }
+  return { ...EMPTY_DAILY };
+}
+
+export const saveDaily = (state: DailyState): void => write(DAILY_KEY, JSON.stringify(state));

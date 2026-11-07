@@ -1,5 +1,5 @@
 import { CONFIG } from "./config";
-import { clamp, rand, smoothstep } from "./math";
+import { between, clamp, smoothstep } from "./math";
 import type { Hazard, Well } from "./types";
 
 const PEAK = 0.8;
@@ -14,33 +14,40 @@ export function difficulty(progress: number): number {
 export const hazardInterval = (d: number): number =>
   CONFIG.hazardIntervalStart + (CONFIG.hazardIntervalEnd - CONFIG.hazardIntervalStart) * d;
 
+// rng is Math.random for a normal run and a seeded generator for the Daily Run
 export function spawnHazard(
   w: number,
   h: number,
   scale: number,
   d: number,
   targetX: number,
+  rng: () => number = Math.random,
 ): Hazard {
-  const r = rand(14, 34) * scale;
-  const x = rand(r, w - r);
+  const r = between(rng, 14, 34) * scale;
+  const x = between(rng, r, w - r);
   const y = -r * 1.5;
-  const vy = (rand(150, 270) + 260 * d) * scale;
-  let vx = rand(-40, 40) * scale;
+  const vy = (between(rng, 150, 270) + 260 * d) * scale;
+  let vx = between(rng, -40, 40) * scale;
 
-  // As the run gets harder, more rocks are aimed at where you are right now.
-  if (Math.random() < 0.15 + 0.3 * d) {
+  // as the run gets harder, more rocks are aimed at where you are right now
+  if (rng() < 0.15 + 0.3 * d) {
     const fallTime = (h * 0.8 + r * 1.5) / vy;
     vx = clamp(((targetX - x) / fallTime) * 0.85, -320 * scale, 320 * scale);
   }
 
-  const shape = Array.from({ length: 7 }, () => rand(0.78, 1.12));
-  return { x, y, px: x, py: y, vx, vy, r, angle: rand(0, Math.PI * 2), spin: rand(-2.2, 2.2), shape };
+  const shape = Array.from({ length: 7 }, () => between(rng, 0.78, 1.12));
+  return {
+    x, y, px: x, py: y, vx, vy, r,
+    angle: between(rng, 0, Math.PI * 2),
+    spin: between(rng, -2.2, 2.2),
+    shape,
+  };
 }
 
-export function spawnWell(w: number, scale: number): Well {
+export function spawnWell(w: number, scale: number, rng: () => number = Math.random): Well {
   const r = 18 * scale;
   const pullR = CONFIG.wellPullRadius * scale;
-  const x = rand(w * 0.18, w * 0.82);
+  const x = between(rng, w * 0.18, w * 0.82);
   const y = -pullR * 0.6;
   return { x, y, px: x, py: y, vx: 0, vy: CONFIG.wellDrift * scale, r, pullR };
 }
