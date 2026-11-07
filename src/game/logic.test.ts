@@ -5,6 +5,7 @@ import { smoothstep } from "./math";
 import { currentStreak, dayKey, EMPTY_DAILY, mulberry32, recordDaily, seedFromKey, yesterdayKey } from "./daily";
 import { difficulty, spawnHazard } from "./spawner";
 import { COLORS, SHIPS, shipById, unlockedNames, unlockHint } from "./ships";
+import { drawShareCard, shareText, type ShareData } from "../services/share";
 import { autoThemeId, pickTheme, THEMES } from "./themes";
 
 describe("journey", () => {
@@ -158,5 +159,34 @@ describe("daily run", () => {
     const state = recordDaily(EMPTY_DAILY, "2026-11-08", "2026-11-07", 100, 10);
     expect(currentStreak(state, "2026-11-09", "2026-11-08")).toBe(1);
     expect(currentStreak(state, "2026-11-10", "2026-11-09")).toBe(0);
+  });
+});
+
+describe("share card", () => {
+  const data: ShareData = {
+    tag: "KARTIK", score: 21340, reached: 4, planet: "Jupiter", won: false, daily: "8 Nov 2026",
+    time: 168, accent: "#1ee6ff", shipColor: "#1ee6ff", shipPoints: [[0, -1], [1, 1], [-1, 1]], site: "example.com",
+  };
+
+  it("draws the whole card without errors", () => {
+    let calls = 0;
+    const gradient = { addColorStop: () => undefined };
+    const ctx = new Proxy(
+      {},
+      {
+        get: (_t, prop) => (prop === "createLinearGradient" || prop === "createRadialGradient" ? () => gradient : () => void calls++),
+        set: () => true,
+      },
+    ) as unknown as CanvasRenderingContext2D;
+    drawShareCard(ctx, data);
+    expect(calls).toBeGreaterThan(100);
+  });
+
+  it("writes a short message to go with it", () => {
+    const text = shareText(data);
+    expect(text.includes("Jupiter")).toBe(true);
+    expect(text.includes("21,340")).toBe(true);
+    expect(text.includes("Daily Run")).toBe(true);
+    expect(shareText({ ...data, won: true, daily: "" }).includes("made it home")).toBe(true);
   });
 });

@@ -3,6 +3,7 @@ import { unlockNotes } from "@/game/ships";
 import { find, hangarButton, html, pad, showPanel, type Panel } from "./dom";
 import { createModeButton } from "./mode-button";
 import { notes } from "./notes";
+import { createShareButton } from "./share-button";
 import { renderRuns } from "./runs";
 
 export function createGameOver(game: Game): Panel {
@@ -31,6 +32,7 @@ export function createGameOver(game: Game): Panel {
   const button = find<HTMLButtonElement>(el, ".btn-primary");
   button.after(mode.el);
   mode.el.after(hangarButton());
+  button.after(createShareButton(game));
   let timer = 0;
 
   button.addEventListener("click", () => game.start());
