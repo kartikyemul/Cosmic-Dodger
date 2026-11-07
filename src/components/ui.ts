@@ -1,14 +1,17 @@
 import "./ui.css";
 import { audio } from "@/game/audio";
 import { WIN_SCORE, type Game } from "@/game/game";
+import { dayKey, recordDaily, yesterdayKey } from "@/game/daily";
 import { passedStages, STAGES } from "@/game/journey";
 import { unlockedNames, unlockNotes } from "@/game/ships";
 import type { GameState } from "@/game/types";
-import { addRun, loadFar, saveBest, saveFar } from "@/services/storage";
+import { addRun, loadDaily, loadFar, saveBest, saveDaily, saveFar } from "@/services/storage";
 import { createCrash } from "./crash";
+import { pad } from "./dom";
 import { createGameOver } from "./game-over";
 import { createHangar } from "./hangar";
 import { createHud } from "./hud";
+import { notes } from "./notes";
 import { createPause } from "./pause";
 import { createStartScreen } from "./start-screen";
 import { createVictory } from "./victory";
@@ -36,10 +39,19 @@ export function mountUi(root: HTMLElement, game: Game): void {
       const names = unlockedNames(before, reached);
       unlockNotes.text = names.length > 0 ? `Unlocked: ${names.join(", ")}` : "";
       if (reached > before) saveFar(reached);
+
+      if (game.mode === "daily" && game.score > 0) {
+        const next = recordDaily(loadDaily(), dayKey(), yesterdayKey(), game.score, game.elapsed);
+        saveDaily(next);
+        notes.daily = `Daily Run · best today ${pad(next.best)}${next.streak > 1 ? ` · ${next.streak}-day streak` : ""}`;
+      } else {
+        notes.daily = game.mode === "daily" ? "Daily Run" : "";
+      }
     }
     if (state === "playing" && last !== "paused") {
       audio.play("start");
       passed = 0;
+      if (game.mode === "daily") hud.announce("Daily Run");
     }
     if (state === "over") audio.play("over");
     if (state === "won") audio.play("win");

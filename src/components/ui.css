@@ -478,3 +478,22 @@
   padding: 0.5rem 0.9rem;
   min-width: 12rem;
 }
+
+/* daily run */
+.daily {
+  display: grid;
+  gap: 0.15rem;
+  justify-items: center;
+}
+.daily-meta {
+  font-size: 0.72rem;
+  color: var(--color-text-tertiary);
+}
+.daily-line {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+.daily-line[data-show="false"] {
+  display: none;
+}

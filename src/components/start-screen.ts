@@ -1,5 +1,6 @@
 import type { Game } from "@/game/game";
-import { loadTag, saveTag } from "@/services/storage";
+import { currentStreak, dayKey, yesterdayKey } from "@/game/daily";
+import { loadDaily, loadTag, saveTag } from "@/services/storage";
 import { cleanTag, isValidTag, randomTag, TAG_MAX, TAG_MIN } from "@/services/tag";
 import { find, hangarButton, html, pad, showPanel, type Panel } from "./dom";
 import { createTouchSetting } from "./touch-setting";
@@ -52,13 +53,35 @@ export function createStartScreen(game: Game): StartScreen {
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") game.start();
   });
-  playButton.addEventListener("click", () => game.start());
+  playButton.addEventListener("click", () => game.start("classic"));
+
+  const dailyButton = document.createElement("button");
+  dailyButton.type = "button";
+  dailyButton.className = "item btn btn-ghost daily";
+  dailyButton.innerHTML = "<span>Daily Run</span><small class=\"daily-meta\"></small>";
+  const dailyMeta = find<HTMLElement>(dailyButton, ".daily-meta");
+  dailyButton.addEventListener("click", () => game.start("daily"));
+  playButton.after(dailyButton);
+
+  const refreshDaily = (): void => {
+    const state = loadDaily();
+    const today = dayKey();
+    const streak = currentStreak(state, today, yesterdayKey());
+    const parts: string[] = [];
+    if (streak > 0) parts.push(`${streak}-day streak`);
+    if (state.day === today && state.best > 0) parts.push(`best today ${pad(state.best)}`);
+    dailyMeta.textContent = parts.length > 0 ? parts.join(" · ") : "Same rocks for everyone today";
+  };
+  refreshDaily();
 
   return {
     el,
     setOpen(open) {
       showPanel(el, open);
-      if (open) bestValue.textContent = pad(game.best);
+      if (open) {
+        bestValue.textContent = pad(game.best);
+        refreshDaily();
+      }
     },
     confirmTag() {
       const tag = cleanTag(input.value);
