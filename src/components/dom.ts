@@ -37,3 +37,19 @@ export function hangarButton(): HTMLButtonElement {
   button.addEventListener("click", () => window.dispatchEvent(new Event("open-hangar")));
   return button;
 }
+
+/** Rolls a score up from zero, the way arcade machines do. */
+export function countUp(el: HTMLElement, to: number, ms = 800): void {
+  if (to <= 0 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    el.textContent = pad(to);
+    return;
+  }
+  const start = performance.now();
+  const tick = (now: number): void => {
+    const t = Math.min(1, (now - start) / ms);
+    const eased = 1 - (1 - t) ** 3;
+    el.textContent = pad(t === 1 ? to : Math.round((to * eased) / 10) * 10);
+    if (t < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}

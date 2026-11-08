@@ -63,6 +63,9 @@ export function createHud(game: Game): Hud {
     toast.classList.remove("show");
     void toast.offsetWidth;
     toast.classList.add("show");
+    scoreEl.classList.remove("pulse");
+    void scoreEl.offsetWidth;
+    scoreEl.classList.add("pulse");
   };
 
   return {

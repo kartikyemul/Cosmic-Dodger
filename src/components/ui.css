@@ -501,3 +501,13 @@
 .nudge[data-show="false"] {
   display: none;
 }
+
+/* score bumps when a planet is announced */
+.score.pulse {
+  animation: score-pulse 600ms var(--ease-spring);
+}
+@keyframes score-pulse {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}

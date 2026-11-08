@@ -1,6 +1,6 @@
 import { RESTART_DELAY_MS, type Game } from "@/game/game";
 import { unlockNotes } from "@/game/ships";
-import { find, hangarButton, html, pad, showPanel, type Panel } from "./dom";
+import { countUp, find, hangarButton, html, pad, showPanel, type Panel } from "./dom";
 import { createModeButton } from "./mode-button";
 import { notes } from "./notes";
 import { createShareButton } from "./share-button";
@@ -46,7 +46,7 @@ export function createGameOver(game: Game): Panel {
       window.clearTimeout(timer);
       if (!open) return;
 
-      scoreEl.textContent = pad(game.score);
+      countUp(scoreEl, game.score);
       bestEl.textContent = pad(game.best);
       badge.dataset.show = String(game.newBest);
       unlockEl.textContent = unlockNotes.text;

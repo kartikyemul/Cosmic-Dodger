@@ -1,6 +1,6 @@
 import { WIN_CARD_DELAY_MS, type Game } from "@/game/game";
 import { unlockNotes } from "@/game/ships";
-import { find, formatTime, hangarButton, html, pad, showPanel, type Panel } from "./dom";
+import { countUp, find, formatTime, hangarButton, html, pad, showPanel, type Panel } from "./dom";
 import { createModeButton } from "./mode-button";
 import { notes } from "./notes";
 import { createShareButton } from "./share-button";
@@ -43,7 +43,7 @@ export function createVictory(game: Game): Panel {
         showPanel(el, false);
         return;
       }
-      scoreEl.textContent = pad(game.score);
+      scoreEl.textContent = pad(0);
       timeEl.textContent = formatTime(game.elapsed);
       bestEl.textContent = pad(game.best);
       badge.dataset.show = String(game.newBest);
@@ -56,6 +56,7 @@ export function createVictory(game: Game): Panel {
       // give the arrival a few quiet seconds before the card appears
       timer = window.setTimeout(() => {
         showPanel(el, true);
+        countUp(scoreEl, game.score);
         button.disabled = false;
         button.focus({ preventScroll: true });
       }, WIN_CARD_DELAY_MS);
