@@ -14,6 +14,8 @@ export interface Hazard extends Body {
   angle: number;
   spin: number;
   shape: number[];
+  /** set once the rock has slipped past close to the ship */
+  grazed: boolean;
 }
 
 /** A gravity well: deadly core, pulls the ship toward it inside pullR. */

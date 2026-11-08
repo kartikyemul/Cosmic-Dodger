@@ -2,10 +2,10 @@ import "./ui.css";
 import { audio } from "@/game/audio";
 import { WIN_SCORE, type Game } from "@/game/game";
 import { dayKey, recordDaily, yesterdayKey } from "@/game/daily";
-import { passedStages, STAGES } from "@/game/journey";
+import { passedStages, pointsToNext, STAGES } from "@/game/journey";
 import { unlockedNames, unlockNotes } from "@/game/ships";
 import type { GameState } from "@/game/types";
-import { addRun, loadDaily, loadFar, saveBest, saveDaily, saveFar } from "@/services/storage";
+import { addRun, loadDaily, loadFar, loadSeen, saveBest, saveDaily, saveFar, saveSeen } from "@/services/storage";
 import { createCrash } from "./crash";
 import { pad } from "./dom";
 import { createGameOver } from "./game-over";
@@ -47,11 +47,19 @@ export function mountUi(root: HTMLElement, game: Game): void {
       } else {
         notes.daily = game.mode === "daily" ? "Daily Run" : "";
       }
+
+      const left = pointsToNext(game.score / WIN_SCORE, WIN_SCORE);
+      notes.nudge = state === "over" ? `${left.points.toLocaleString("en-US")} points to ${left.name}` : "";
     }
     if (state === "playing" && last !== "paused") {
       audio.play("start");
       passed = 0;
-      if (game.mode === "daily") hud.announce("Daily Run");
+      if (game.mode === "daily") {
+        hud.announce("Daily Run");
+      } else if (!loadSeen()) {
+        hud.announce(window.matchMedia("(pointer: coarse)").matches ? "Drag to fly" : "Move to fly");
+        saveSeen();
+      }
     }
     if (state === "over") audio.play("over");
     if (state === "won") audio.play("win");
@@ -66,11 +74,13 @@ export function mountUi(root: HTMLElement, game: Game): void {
 
   game.canStart = () => !hangar.isOpen() && start.confirmTag();
   game.onCrash = () => crash.setOpen(true);
+  game.onGraze = () => audio.play("graze");
   game.onScore = (score) => {
     hud.setScore(score);
     const count = passedStages(score / WIN_SCORE);
     if (count > passed && count < STAGES.length) {
       audio.play("planet");
+      navigator.vibrate?.(15);
       const stage = STAGES[count - 1];
       if (stage) hud.announce(`Passing ${stage.name}`);
     }

@@ -497,3 +497,7 @@
 .daily-line[data-show="false"] {
   display: none;
 }
+
+.nudge[data-show="false"] {
+  display: none;
+}

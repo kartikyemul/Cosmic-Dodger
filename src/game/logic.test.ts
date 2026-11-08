@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cleanTag, isValidTag } from "../services/tag";
-import { nextStage, passedStages, STAGES } from "./journey";
+import { nextStage, passedStages, pointsToNext, STAGES } from "./journey";
 import { smoothstep } from "./math";
 import { currentStreak, dayKey, EMPTY_DAILY, mulberry32, recordDaily, seedFromKey, yesterdayKey } from "./daily";
 import { difficulty, spawnHazard } from "./spawner";
@@ -188,5 +188,16 @@ describe("share card", () => {
     expect(text.includes("21,340")).toBe(true);
     expect(text.includes("Daily Run")).toBe(true);
     expect(shareText({ ...data, won: true, daily: "" }).includes("made it home")).toBe(true);
+  });
+});
+
+describe("next planet nudge", () => {
+  it("counts the points left to the next planet", () => {
+    expect(pointsToNext(0, 40000).name).toBe("Neptune");
+    expect(pointsToNext(0, 40000).points).toBe(5000);
+    expect(pointsToNext(0.5, 40000).name).toBe("Mars");
+    expect(pointsToNext(0.5, 40000).points).toBe(5000);
+    expect(pointsToNext(0.99, 40000).name).toBe("Earth");
+    expect(pointsToNext(0.99, 40000).points).toBe(400);
   });
 });

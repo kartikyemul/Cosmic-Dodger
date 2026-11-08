@@ -14,3 +14,9 @@ export function nextStage(progress: number): Stage {
 }
 
 export const passedStages = (progress: number): number => STAGES.filter((s) => s.at <= progress).length;
+
+/** How many points are left until the next planet. */
+export function pointsToNext(progress: number, finalScore: number): { name: string; points: number } {
+  const stage = nextStage(progress);
+  return { name: stage.name, points: Math.max(0, Math.round((stage.at - progress) * finalScore)) };
+}

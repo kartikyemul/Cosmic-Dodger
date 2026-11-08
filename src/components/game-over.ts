@@ -15,6 +15,7 @@ export function createGameOver(game: Game): Panel {
         <p class="item badge" data-show="false">New best</p>
         <p class="item unlock" data-show="false"></p>
         <p class="item daily-line" data-show="false"></p>
+        <p class="item hint nudge" data-show="false"></p>
         <p class="item hint">Best <span class="numeric best-value">000000</span></p>
         <ol class="item runs" data-empty="true" aria-label="Your best runs"></ol>
         <button class="item btn btn-primary" type="button">Play again</button>
@@ -28,6 +29,7 @@ export function createGameOver(game: Game): Panel {
   const runsEl = find<HTMLElement>(el, ".runs");
   const unlockEl = find<HTMLElement>(el, ".unlock");
   const dailyEl = find<HTMLElement>(el, ".daily-line");
+  const nudgeEl = find<HTMLElement>(el, ".nudge");
   const mode = createModeButton(game);
   const button = find<HTMLButtonElement>(el, ".btn-primary");
   button.after(mode.el);
@@ -51,6 +53,8 @@ export function createGameOver(game: Game): Panel {
       unlockEl.dataset.show = String(unlockNotes.text !== "");
       dailyEl.textContent = notes.daily;
       dailyEl.dataset.show = String(notes.daily !== "");
+      nudgeEl.textContent = notes.nudge;
+      nudgeEl.dataset.show = String(notes.nudge !== "");
       mode.sync();
       renderRuns(runsEl);
       button.disabled = true;

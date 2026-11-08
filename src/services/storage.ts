@@ -138,3 +138,8 @@ export function loadDaily(): DailyState {
 }
 
 export const saveDaily = (state: DailyState): void => write(DAILY_KEY, JSON.stringify(state));
+
+const SEEN_KEY = "cosmic-dodger:v2:seen";
+
+export const loadSeen = (): boolean => read(SEEN_KEY) === "1";
+export const saveSeen = (): void => write(SEEN_KEY, "1");

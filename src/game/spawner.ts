@@ -41,6 +41,7 @@ export function spawnHazard(
     angle: between(rng, 0, Math.PI * 2),
     spin: between(rng, -2.2, 2.2),
     shape,
+    grazed: false,
   };
 }
 

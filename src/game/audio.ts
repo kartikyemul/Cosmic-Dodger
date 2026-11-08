@@ -1,9 +1,10 @@
 import { loadMuted, saveMuted } from "@/services/storage";
 
-type Sound = "start" | "over" | "win" | "planet";
+type Sound = "start" | "over" | "win" | "planet" | "graze";
 
 let ctx: AudioContext | null = null;
 let muted = loadMuted();
+let lastGraze = 0;
 
 function unlock(): void {
   try {
@@ -54,7 +55,12 @@ export const audio = {
     if (muted) return;
     try {
       unlock();
-      if (sound === "start") {
+      if (sound === "graze") {
+        const now = performance.now();
+        if (now - lastGraze < 90) return;
+        lastGraze = now;
+        tone(1500, 0, 0.05, "triangle", 0.035, 1900);
+      } else if (sound === "start") {
         tone(440, 0, 0.09, "sine", 0.12, 660);
         tone(660, 0.08, 0.12, "sine", 0.12, 880);
       } else if (sound === "over") {

@@ -64,6 +64,7 @@ export class Game {
   onScore: ((score: number) => void) | null = null;
   canStart: (() => boolean) | null = null;
   onCrash: (() => void) | null = null;
+  onGraze: (() => void) | null = null;
 
   private readonly ctx: CanvasRenderingContext2D;
   private readonly input: Input;
@@ -393,9 +394,14 @@ export class Game {
     const p = this.player;
     for (const hz of this.hazards) {
       const reach = p.r * CONFIG.playerHit + hz.r * CONFIG.hazardHit;
-      if ((hz.x - p.x) ** 2 + (hz.y - p.y) ** 2 < reach * reach) {
+      const dist2 = (hz.x - p.x) ** 2 + (hz.y - p.y) ** 2;
+      if (dist2 < reach * reach) {
         this.die();
         return;
+      }
+      if (!hz.grazed && dist2 < (reach * 1.7) ** 2) {
+        hz.grazed = true;
+        this.graze(hz);
       }
     }
     for (const wl of this.wells) {
@@ -456,6 +462,27 @@ export class Game {
       });
     }
     this.onStateChange?.(this.state);
+  }
+
+  // a rock slipped past very close: a few sparks and a tick
+  private graze(hz: Hazard): void {
+    const p = this.player;
+    const away = Math.atan2(p.y - hz.y, p.x - hz.x);
+    for (let i = 0; i < 4; i++) {
+      const a = away + rand(-0.8, 0.8);
+      const s = rand(120, 260) * this.scale;
+      this.addParticle({
+        x: p.x,
+        y: p.y,
+        vx: Math.cos(a) * s,
+        vy: Math.sin(a) * s,
+        life: 0,
+        maxLife: rand(0.25, 0.45),
+        size: rand(1.5, 2.5) * this.scale,
+        tint: "ship",
+      });
+    }
+    this.onGraze?.();
   }
 
   private win(): void {
